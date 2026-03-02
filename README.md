@@ -36,11 +36,17 @@ npm run dev              # start with tsx watch
 
 ```bash
 npm run build
-npm run db:migrate       # run pending migrations (e.g. in CI or Railway deploy hook)
+npm run deploy           # runs all migrations then starts the server
+```
+
+Or run migrations and start separately:
+
+```bash
+npm run db:migrate       # run pending migrations
 npm start
 ```
 
-On **Railway**: set **Build Command** to `npm run build` and **Start Command** to `npm start`. Run migrations once after adding PostgreSQL (e.g. `npx prisma migrate deploy` in a one-off job or in Start Command before `npm start` if you prefer).
+On **Railway**: **Start Command** is set to `npm run deploy` in `railway.json`, so all migrations run automatically on every deployment before the server starts.
 
 ## Environment (Railway)
 

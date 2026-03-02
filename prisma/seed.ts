@@ -47,31 +47,61 @@ async function main(): Promise<void> {
     }),
   ]);
 
-  // Locations
+  // Locations – major Hajj sites (GPS coordinates)
   await Promise.all([
     prisma.location.upsert({
       where: { slug: 'makkah' },
-      create: { slug: 'makkah', nameEn: 'Makkah', nameAr: 'مكة', type: 'makkah', latitude: 21.4225, longitude: 39.8262 },
+      create: { slug: 'makkah', nameEn: 'Makkah', nameAr: 'مكة', type: 'makkah', latitude: 21.4225, longitude: 39.8262, description: 'The holy city of Makkah' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'kaaba' },
+      create: { slug: 'kaaba', nameEn: 'Kaaba', nameAr: 'الكعبة', type: 'makkah', latitude: 21.4225, longitude: 39.8262, description: 'The House of Allah at the centre of Masjid al-Haram' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'masjid-al-haram' },
+      create: { slug: 'masjid-al-haram', nameEn: 'Masjid al-Haram', nameAr: 'المسجد الحرام', type: 'makkah', latitude: 21.4225, longitude: 39.8262, description: 'The Grand Mosque surrounding the Kaaba' },
       update: {},
     }),
     prisma.location.upsert({
       where: { slug: 'mina' },
-      create: { slug: 'mina', nameEn: 'Mina', nameAr: 'منى', type: 'mina', latitude: 21.4133, longitude: 39.8933 },
+      create: { slug: 'mina', nameEn: 'Mina', nameAr: 'منى', type: 'mina', latitude: 21.4133, longitude: 39.8933, description: 'Tent city for pilgrims during the days of Tashreeq' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'jamarat' },
+      create: { slug: 'jamarat', nameEn: 'Jamarat (Pillars)', nameAr: 'الجمرات', type: 'mina', latitude: 21.4211, longitude: 39.8686, description: 'Site of the stoning of the devil (Ramy al-Jamarat)' },
       update: {},
     }),
     prisma.location.upsert({
       where: { slug: 'arafat' },
-      create: { slug: 'arafat', nameEn: 'Arafat', nameAr: 'عرفة', type: 'arafat', latitude: 21.3550, longitude: 39.9942 },
+      create: { slug: 'arafat', nameEn: 'Arafat', nameAr: 'عرفة', type: 'arafat', latitude: 21.355, longitude: 39.9942, description: 'Plain of Arafat – standing here is the pinnacle of Hajj' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'jabal-al-rahmah' },
+      create: { slug: 'jabal-al-rahmah', nameEn: 'Jabal al-Rahmah', nameAr: 'جبل الرحمة', type: 'arafat', latitude: 21.3542, longitude: 39.9842, description: 'Mount of Mercy in Arafat' },
       update: {},
     }),
     prisma.location.upsert({
       where: { slug: 'muzdalifah' },
-      create: { slug: 'muzdalifah', nameEn: 'Muzdalifah', nameAr: 'مزدلفة', type: 'muzdalifah', latitude: 21.3983, longitude: 39.9200 },
+      create: { slug: 'muzdalifah', nameEn: 'Muzdalifah', nameAr: 'مزدلفة', type: 'muzdalifah', latitude: 21.3983, longitude: 39.92, description: 'Pilgrims spend the night and collect pebbles here' },
       update: {},
     }),
     prisma.location.upsert({
       where: { slug: 'medina' },
-      create: { slug: 'medina', nameEn: 'Madinah', nameAr: 'المدينة', type: 'medina', latitude: 24.4672, longitude: 39.6111 },
+      create: { slug: 'medina', nameEn: 'Madinah', nameAr: 'المدينة المنورة', type: 'medina', latitude: 24.4672, longitude: 39.6111, description: 'The city of the Prophet (peace be upon him)' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'masjid-an-nabawi' },
+      create: { slug: 'masjid-an-nabawi', nameEn: 'Masjid an-Nabawi', nameAr: 'المسجد النبوي', type: 'medina', latitude: 24.4672, longitude: 39.6111, description: 'The Prophet\'s Mosque in Madinah' },
+      update: {},
+    }),
+    prisma.location.upsert({
+      where: { slug: 'safa-marwa' },
+      create: { slug: 'safa-marwa', nameEn: 'Safa and Marwa', nameAr: 'الصفا والمروة', type: 'makkah', latitude: 21.4222, longitude: 39.8267, description: 'Hills for Sa\'i between Safa and Marwa' },
       update: {},
     }),
   ]);
