@@ -1,0 +1,199 @@
+// HajjBro - Prisma Schema
+// PostgreSQL database for Hajj pilgrimage app
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User & Auth ─────────────────────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String?
+  phone         String?
+  locale        String?   @default("en")
+  fcmToken      String?   @map("fcm_token")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  checklists      UserChecklist[]
+  ritualProgress  UserRitualProgress[]
+  notifications   Notification[]
+  contacts        Contact[]
+
+  @@map("users")
+}
+
+// ─── Rituals (e.g. Ihram, Tawaf, Sa'i, Wuquf, etc.) ──────────────────────────
+model Ritual {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  nameEn      String   @map("name_en")
+  nameAr      String?  @map("name_ar")
+  description String?  @db.Text
+  order       Int      @default(0)
+  dayOfHajj   Int?     @map("day_of_hajj") // 1-6 typically
+  isRequired  Boolean  @default(true) @map("is_required")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  duas            Dua[]
+  userProgress    UserRitualProgress[]
+
+  @@map("rituals")
+}
+
+// ─── Duas (supplications) ────────────────────────────────────────────────────
+model Dua {
+  id              String   @id @default(cuid())
+  slug            String?  @unique
+  ritualId        String?  @map("ritual_id")
+  titleEn         String?  @map("title_en")
+  titleAr         String?  @map("title_ar")
+  textAr          String   @map("text_ar") @db.Text
+  textEn          String?  @map("text_en") @db.Text
+  transliteration String?  @db.Text
+  source          String?  // e.g. Quran 2:201
+  order           Int      @default(0)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  ritual Ritual? @relation(fields: [ritualId], references: [id], onDelete: SetNull)
+
+  @@map("duas")
+}
+
+// ─── Locations (Makkah, Mina, Arafat, Muzdalifah, etc.) ─────────────────────
+model Location {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  nameEn      String   @map("name_en")
+  nameAr      String?  @map("name_ar")
+  description String?  @db.Text
+  latitude    Decimal? @db.Decimal(10, 8)
+  longitude   Decimal? @db.Decimal(11, 8)
+  type        String   // makkah, mina, arafat, muzdalifah, medina, other
+  address     String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  prayerTimes PrayerTime[]
+
+  @@map("locations")
+}
+
+// ─── Checklist (pre-travel, documents, packing, etc.) ────────────────────────
+model Checklist {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  titleEn     String   @map("title_en")
+  titleAr     String?  @map("title_ar")
+  description String?  @db.Text
+  category    String   // pre_travel, documents, packing, during_hajj, post_hajj
+  order       Int      @default(0)
+  isRequired  Boolean  @default(false) @map("is_required")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  userChecklists UserChecklist[]
+
+  @@map("checklists")
+}
+
+// ─── User's checklist progress ──────────────────────────────────────────────
+model UserChecklist {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  checklistId String    @map("checklist_id")
+  completed   Boolean   @default(false)
+  completedAt DateTime? @map("completed_at")
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checklistId])
+  @@map("user_checklists")
+}
+
+// ─── User's ritual progress ─────────────────────────────────────────────────
+model UserRitualProgress {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  ritualId   String    @map("ritual_id")
+  status     String    @default("pending") // pending, in_progress, completed
+  completedAt DateTime? @map("completed_at")
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ritual Ritual @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ritualId])
+  @@map("user_ritual_progress")
+}
+
+// ─── In-app notifications ───────────────────────────────────────────────────
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  title     String
+  body      String    @db.Text
+  data      String?   @db.Text // JSON payload for deep linking
+  read      Boolean   @default(false)
+  sentAt    DateTime  @default(now()) @map("sent_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─── Emergency / travel contacts ─────────────────────────────────────────────
+model Contact {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  phone       String
+  relationship String? // family, group_leader, embassy, other
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+// ─── Prayer times (per location/date) ─────────────────────────────────────────
+model PrayerTime {
+  id         String   @id @default(cuid())
+  locationId String   @map("location_id")
+  date       DateTime @db.Date
+  fajr       String   // HH:mm
+  sunrise    String?  @map("sunrise")
+  dhuhr      String
+  asr        String
+  maghrib    String
+  isha       String
+  source     String?  // api or manual
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, date])
+  @@map("prayer_times")
+}

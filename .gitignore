@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Prisma
+prisma/migrations/**/migration_lock.toml
+prisma/seed.js
+prisma/seed.js.map
+prisma/seed.d.ts
+prisma/seed.d.ts.map
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Firebase
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
