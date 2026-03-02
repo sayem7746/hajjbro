@@ -7,13 +7,13 @@ const router = Router();
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
 
-// Mount more route modules here, e.g.:
-// router.use('/rituals', ritualRoutes);
-// router.use('/duas', duaRoutes);
-// router.use('/locations', locationRoutes);
-// router.use('/checklists', checklistRoutes);
-// router.use('/notifications', notificationRoutes);
-// router.use('/contacts', contactRoutes);
-// router.use('/prayer-times', prayerTimeRoutes);
+// Private routes: mount with authMiddleware (and optionally requireRole) so they are protected, e.g.:
+// import { authMiddleware, requireRole } from '../middleware/index.js';
+// router.use('/rituals', authMiddleware, ritualRoutes);
+// router.use('/admin', authMiddleware, requireRole('admin'), adminRoutes);
+// router.use('/checklists', authMiddleware, checklistRoutes);
+// router.use('/notifications', authMiddleware, notificationRoutes);
+// router.use('/contacts', authMiddleware, contactRoutes);
+// router.use('/prayer-times', authMiddleware, prayerTimeRoutes);
 
 export default router;

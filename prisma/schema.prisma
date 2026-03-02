@@ -11,12 +11,18 @@ datasource db {
 }
 
 // ─── User & Auth ─────────────────────────────────────────────────────────────
+enum UserRole {
+  pilgrim
+  admin
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
   passwordHash  String    @map("password_hash")
   name          String?
   phone         String?
+  role          UserRole  @default(pilgrim)
   locale        String?   @default("en")
   fcmToken      String?   @map("fcm_token")
   emailVerified Boolean   @default(false) @map("email_verified")
@@ -25,12 +31,28 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastLoginAt   DateTime? @map("last_login_at")
 
+  refreshTokens   RefreshToken[]
   checklists      UserChecklist[]
   ritualProgress  UserRitualProgress[]
   notifications   Notification[]
   contacts        Contact[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash") // bcrypt/sha256 of opaque token
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
 }
 
 // ─── Rituals (e.g. Ihram, Tawaf, Sa'i, Wuquf, etc.) ──────────────────────────

@@ -28,15 +28,38 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
+export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const refreshToken = req.body?.refreshToken ?? req.headers['x-refresh-token'];
+    const result = await authService.refresh(refreshToken);
+    res.json({ success: true, data: result });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const refreshToken = req.body?.refreshToken ?? req.headers['x-refresh-token'];
+    await authService.logout(refreshToken ?? null);
+    res.json({ success: true, message: 'Logged out' });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) {
       throw new AppError(401, 'Not authenticated');
     }
-    // Return minimal user info; full profile can be a separate endpoint
     res.json({
       success: true,
-      data: { id: req.user.sub, email: req.user.email },
+      data: {
+        id: req.user.sub,
+        email: req.user.email,
+        role: req.user.role,
+      },
     });
   } catch (e) {
     next(e);
