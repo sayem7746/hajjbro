@@ -3,13 +3,21 @@ import app from './app.js';
 import { env } from './config/env.js';
 import './lib/prisma.js'; // ensure DB connection attempted at startup
 import { logger } from './utils/logger.js';
+import { refreshDailyPrayerTimes } from './services/prayerTimesService.js';
+
+const SAUDI_CRON_TZ = env.SAUDI_TIMEZONE ?? 'Asia/Riyadh';
 
 function startCronJobs(): void {
   try {
-    // Example: run daily at 00:00 for prayer time sync (placeholder)
-    cron.schedule('0 0 * * *', () => {
-      logger.info('Daily cron: prayer time sync placeholder');
-    });
+    // Refresh cached prayer times daily at 00:00 Saudi Arabia time
+    cron.schedule('0 0 * * *', async () => {
+      try {
+        const { updated, errors } = await refreshDailyPrayerTimes();
+        logger.info({ updated, errors }, 'Daily prayer times refresh completed');
+      } catch (e) {
+        logger.error({ err: e }, 'Daily prayer times refresh failed');
+      }
+    }, { timezone: SAUDI_CRON_TZ });
   } catch (e) {
     logger.warn({ err: e }, 'node-cron not configured or failed');
   }

@@ -25,6 +25,8 @@ export const env = {
   BCRYPT_SALT_ROUNDS: parseInt(getEnvOptional('BCRYPT_SALT_ROUNDS', '12') ?? '12', 10),
   CORS_ORIGINS: getEnvOptional('CORS_ORIGINS', '*'),
   LOG_LEVEL: getEnvOptional('LOG_LEVEL', 'info'),
+  PRAYER_TIMES_API_BASE: getEnvOptional('PRAYER_TIMES_API_BASE', 'https://api.aladhan.com/v1'),
+  SAUDI_TIMEZONE: getEnvOptional('SAUDI_TIMEZONE', 'Asia/Riyadh'),
   // Railway sets PORT and DATABASE_URL automatically
   isProduction: process.env.NODE_ENV === 'production',
   isDevelopment: process.env.NODE_ENV !== 'production',
