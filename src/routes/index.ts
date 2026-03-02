@@ -7,6 +7,7 @@ import progressRoutes from './progressRoutes.js';
 import checklistRoutes from './checklistRoutes.js';
 import locationRoutes from './locationRoutes.js';
 import prayerTimesRoutes from './prayerTimesRoutes.js';
+import notificationScheduleRoutes from './notificationScheduleRoutes.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/progress', progressRoutes);
 router.use('/checklists', checklistRoutes);
 router.use('/locations', locationRoutes);
 router.use('/prayer-times', prayerTimesRoutes);
+router.use('/notifications', notificationScheduleRoutes);
 
 export default router;

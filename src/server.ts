@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import './lib/prisma.js'; // ensure DB connection attempted at startup
 import { logger } from './utils/logger.js';
 import { refreshDailyPrayerTimes } from './services/prayerTimesService.js';
+import { dispatchScheduledNotifications } from './services/notificationScheduleService.js';
 
 const SAUDI_CRON_TZ = env.SAUDI_TIMEZONE ?? 'Asia/Riyadh';
 
@@ -18,6 +19,15 @@ function startCronJobs(): void {
         logger.error({ err: e }, 'Daily prayer times refresh failed');
       }
     }, { timezone: SAUDI_CRON_TZ });
+
+    // Dispatch scheduled push notifications every minute
+    cron.schedule('* * * * *', async () => {
+      try {
+        await dispatchScheduledNotifications();
+      } catch (e) {
+        logger.error({ err: e }, 'Scheduled notifications dispatch failed');
+      }
+    });
   } catch (e) {
     logger.warn({ err: e }, 'node-cron not configured or failed');
   }
