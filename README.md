@@ -47,18 +47,26 @@ On **Railway**: set **Build Command** to `npm run build` and **Start Command** t
 **Project ID:** `25f58a8c-32c5-4e0d-8923-1a28b854304e` (in `railway.json`). Link locally with:
 
 ```bash
-railway link 25f58a8c-32c5-4e0d-8923-1a28b854304e
+railway link -p 25f58a8c-32c5-4e0d-8923-1a28b854304e
+railway service HajjBro
 ```
 
-Railway sets `PORT` and `DATABASE_URL` automatically when you add a PostgreSQL plugin. Configure in the dashboard:
+**Required variables** (set in Railway dashboard → HajjBro service → Variables, or via CLI):
 
-| Variable        | Required | Description                    |
-|----------------|---------|--------------------------------|
-| `DATABASE_URL` | Yes     | PostgreSQL connection string   |
-| `JWT_SECRET`   | Yes     | Min 32 chars, keep secret      |
-| `NODE_ENV`     | No      | `production` on Railway        |
-| `CORS_ORIGINS` | No      | Comma-separated allowed origins|
-| `LOG_LEVEL`    | No      | `info` (default)               |
+| Variable        | Required | Description |
+|----------------|----------|-------------|
+| `JWT_SECRET`   | **Yes**  | Secret for signing JWTs (min 32 chars). Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
+| `DATABASE_URL` | **Yes** (for DB) | Set via reference: `${{Postgres.DATABASE_URL}}` after adding PostgreSQL. |
+
+**Optional:**
+
+| Variable        | Description |
+|----------------|-------------|
+| `NODE_ENV`     | `production` (Railway usually sets this). |
+| `PORT`         | Set by Railway. |
+| `CORS_ORIGINS` | Comma-separated allowed origins; default `*`. |
+| `JWT_EXPIRES_IN` | e.g. `7d` (default `15m`). |
+| `LOG_LEVEL`    | `info` (default). |
 
 Firebase (optional): `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_PRIVATE_KEY_ID`.
 
