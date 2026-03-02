@@ -167,6 +167,8 @@ model UserRitualProgress {
   ritual Ritual @relation(fields: [ritualId], references: [id], onDelete: Cascade)
 
   @@unique([userId, ritualId])
+  @@index([userId])
+  @@index([ritualId])
   @@map("user_ritual_progress")
 }
 
