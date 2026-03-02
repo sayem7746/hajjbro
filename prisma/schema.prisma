@@ -71,6 +71,7 @@ model Ritual {
   duas            Dua[]
   userProgress    UserRitualProgress[]
 
+  @@index([order])
   @@map("rituals")
 }
 
@@ -91,6 +92,8 @@ model Dua {
 
   ritual Ritual? @relation(fields: [ritualId], references: [id], onDelete: SetNull)
 
+  @@index([ritualId])
+  @@index([ritualId, order])
   @@map("duas")
 }
 
