@@ -4,6 +4,7 @@ import healthRoutes from './healthRoutes.js';
 import ritualRoutes from './ritualRoutes.js';
 import duaRoutes from './duaRoutes.js';
 import progressRoutes from './progressRoutes.js';
+import checklistRoutes from './checklistRoutes.js';
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/auth', authRoutes);
 router.use('/rituals', ritualRoutes);
 router.use('/duas', duaRoutes);
 router.use('/progress', progressRoutes);
+router.use('/checklists', checklistRoutes);
 
 export default router;
