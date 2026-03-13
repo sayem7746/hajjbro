@@ -8,6 +8,7 @@ import checklistRoutes from './checklistRoutes.js';
 import locationRoutes from './locationRoutes.js';
 import prayerTimesRoutes from './prayerTimesRoutes.js';
 import notificationScheduleRoutes from './notificationScheduleRoutes.js';
+import adminRoutes from './adminRoutes.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/checklists', checklistRoutes);
 router.use('/locations', locationRoutes);
 router.use('/prayer-times', prayerTimesRoutes);
 router.use('/notifications', notificationScheduleRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;
