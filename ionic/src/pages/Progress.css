@@ -1,0 +1,111 @@
+.progress-hero-section {
+  display: flex;
+  justify-content: center;
+  padding: 28px 24px 8px;
+}
+
+.progress-main-ring {
+  display: flex;
+  justify-content: center;
+}
+
+.circular-chart.large {
+  width: 140px;
+  height: 140px;
+}
+
+.percentage.large {
+  font-size: 0.35em;
+  font-weight: 800;
+}
+
+.percentage-label {
+  fill: var(--ion-color-medium);
+  font-size: 0.16em;
+  text-anchor: middle;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.progress-stats {
+  padding: 0 8px;
+}
+
+.mini-stat-card {
+  text-align: center;
+  border-radius: 14px;
+  margin: 4px;
+}
+
+.mini-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.mini-stat-value.green {
+  color: var(--ion-color-primary);
+}
+
+.mini-stat-value.gold {
+  color: var(--hajj-gold);
+}
+
+.mini-stat-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ion-text-color);
+  margin-top: 2px;
+}
+
+.mini-stat-detail {
+  font-size: 0.7rem;
+  color: var(--ion-color-medium);
+}
+
+.progress-ritual-list {
+  padding: 0 8px;
+}
+
+.progress-item {
+  --background: var(--ion-card-background);
+  --border-radius: 12px;
+  --min-height: 56px;
+  margin: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.progress-item.done {
+  opacity: 0.65;
+}
+
+.progress-check {
+  font-size: 26px;
+}
+
+.progress-item h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.progress-item p {
+  font-size: 0.75rem;
+  color: var(--ion-color-medium);
+  margin: 2px 0 0;
+}
+
+.line-through {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.reset-section {
+  padding: 24px 20px 0;
+}
+
+.reset-btn {
+  --border-radius: 12px;
+  font-weight: 600;
+}

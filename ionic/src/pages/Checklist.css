@@ -1,0 +1,100 @@
+.checklist-summary {
+  padding: 20px 20px 16px;
+}
+
+.checklist-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.checklist-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.checklist-percent {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ion-color-primary);
+}
+
+.checklist-bar {
+  --background: var(--hajj-green-light);
+  --progress-background: var(--ion-color-primary);
+  height: 8px;
+  border-radius: 4px;
+}
+
+.checklist-category {
+  margin-bottom: 8px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 4px;
+}
+
+.category-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-icon {
+  font-size: 18px;
+  color: var(--ion-color-primary);
+}
+
+.category-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ion-text-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.category-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+}
+
+.checklist-card {
+  margin: 4px 16px;
+  border-radius: 14px;
+}
+
+.checklist-card-content {
+  padding: 4px 0;
+}
+
+.checklist-item {
+  --min-height: 44px;
+  --inner-padding-top: 4px;
+  --inner-padding-bottom: 4px;
+}
+
+.checklist-item.checked {
+  opacity: 0.55;
+}
+
+.checklist-checkbox {
+  --size: 22px;
+  --border-radius: 6px;
+  --checkbox-background-checked: var(--ion-color-primary);
+  margin-right: 12px;
+}
+
+.checklist-item ion-label {
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.label-checked {
+  text-decoration: line-through;
+}

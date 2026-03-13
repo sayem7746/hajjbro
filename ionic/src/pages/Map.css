@@ -1,0 +1,100 @@
+.map-segment {
+  margin: 8px 16px;
+}
+
+.map-container {
+  width: 100%;
+  height: calc(100vh - 160px);
+  position: relative;
+}
+
+.leaflet-map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.map-popup {
+  text-align: center;
+  min-width: 160px;
+}
+
+.map-popup strong {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.popup-arabic {
+  font-family: 'Amiri', serif;
+  color: var(--hajj-gold, #C8A951);
+  font-size: 0.95rem;
+  direction: rtl;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.map-popup p {
+  font-size: 0.78rem;
+  margin: 0;
+  color: #555;
+  line-height: 1.4;
+}
+
+.location-list {
+  padding: 0 8px;
+}
+
+.location-item {
+  --background: var(--ion-card-background);
+  --border-radius: 14px;
+  --padding-start: 12px;
+  --inner-padding-top: 12px;
+  --inner-padding-bottom: 12px;
+  margin: 6px 8px;
+  border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+}
+
+.location-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--hajj-green-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.location-icon-wrap ion-icon {
+  font-size: 20px;
+  color: var(--ion-color-primary);
+}
+
+.location-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.location-name-row h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.location-arabic {
+  font-family: 'Amiri', serif;
+  font-size: 0.9rem;
+  color: var(--hajj-gold);
+  direction: rtl;
+}
+
+.location-desc {
+  font-size: 0.78rem;
+  color: var(--ion-color-medium);
+  margin: 4px 0 0;
+  line-height: 1.3;
+}

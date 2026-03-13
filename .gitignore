@@ -10,7 +10,7 @@ coverage/
 *.tsbuildinfo
 
 # Prisma
-prisma/migrations/**/migration_lock.toml
+# prisma/migrations/**/migration_lock.toml
 prisma/seed.js
 prisma/seed.js.map
 prisma/seed.d.ts
