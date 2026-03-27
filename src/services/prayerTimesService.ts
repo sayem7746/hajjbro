@@ -205,8 +205,7 @@ export async function refreshDailyPrayerTimes(): Promise<{ updated: number; erro
 
   const coordKey = (lat: number, lng: number) => `${lat.toFixed(5)},${lng.toFixed(5)}`;
   const cache = new Map<string, AladhanTimings | null>();
-  let updated = 0;
-  let errors = 0;
+  const upsertPromises: Array<{ locationId: string; timings: AladhanTimings }> = [];
 
   for (const loc of locations) {
     const lat = Number(loc.latitude);
@@ -218,17 +217,25 @@ export async function refreshDailyPrayerTimes(): Promise<{ updated: number; erro
       cache.set(key, timings);
     }
     if (timings) {
-      try {
-        await upsertPrayerTime(loc.id, today, timings);
-        updated++;
-      } catch (e) {
-        logger.warn({ err: e, locationId: loc.id }, 'Failed to upsert prayer time');
-        errors++;
-      }
+      upsertPromises.push({ locationId: loc.id, timings });
+    }
+  }
+
+  const results = await Promise.allSettled(
+    upsertPromises.map(({ locationId, timings }) => upsertPrayerTime(locationId, today, timings))
+  );
+  let updated = 0;
+  let errors = 0;
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r.status === 'fulfilled') {
+      updated++;
     } else {
+      logger.warn({ err: r.reason, locationId: upsertPromises[i].locationId }, 'Failed to upsert prayer time');
       errors++;
     }
   }
+  errors += locations.length - upsertPromises.length;
 
   logger.info(
     { updated, errors, date: dateStr, timezone: SAUDI_TIMEZONE },

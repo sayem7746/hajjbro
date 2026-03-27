@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import * as authController from '../controllers/authController.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { authRateLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-// Public
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/refresh', authController.refresh);
-router.post('/logout', authController.logout);
+// Public (stricter rate limit for auth endpoints)
+router.post('/register', authRateLimiter, authController.register);
+router.post('/login', authRateLimiter, authController.login);
+router.post('/refresh', authRateLimiter, authController.refresh);
+router.post('/logout', authRateLimiter, authController.logout);
 
 // Protected (all require valid JWT)
 router.get('/me', authMiddleware, authController.me);

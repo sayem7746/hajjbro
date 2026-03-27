@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { storageService } from './storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hajjbro-production.up.railway.app/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -47,6 +47,17 @@ export const prayerTimesApi = {
         longitude,
         method: 4, // Umm Al-Qura University, Makkah
         date: date || undefined,
+      },
+    }),
+};
+
+export const weatherApi = {
+  getForecast: () => api.get('/weather/forecast'),
+  getHistoricalHajj: (startYear?: number, endYear?: number) =>
+    api.get('/weather/historical-hajj', {
+      params: {
+        ...(startYear != null && { startYear }),
+        ...(endYear != null && { endYear }),
       },
     }),
 };

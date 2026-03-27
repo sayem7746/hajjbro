@@ -23,6 +23,7 @@ import Progress from '../pages/Progress';
 import Checklist from '../pages/Checklist';
 import MapPage from '../pages/Map';
 import PrayerTimesPage from '../pages/PrayerTimes';
+import Weather from '../pages/Weather';
 
 const AppTabs: React.FC = () => {
   return (
@@ -35,6 +36,7 @@ const AppTabs: React.FC = () => {
         <Route exact path="/app/checklist" component={Checklist} />
         <Route exact path="/app/map" component={MapPage} />
         <Route exact path="/app/prayers" component={PrayerTimesPage} />
+        <Route exact path="/app/weather" component={Weather} />
         <Route exact path="/app">
           <Redirect to="/app/home" />
         </Route>

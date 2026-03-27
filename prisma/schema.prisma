@@ -2,7 +2,8 @@
 // PostgreSQL database for Hajj pilgrimage app
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -38,6 +39,7 @@ model User {
   scheduledNotifications ScheduledNotification[]
   contacts              Contact[]
 
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -114,6 +116,8 @@ model Location {
 
   prayerTimes PrayerTime[]
 
+  @@index([type])
+  @@index([latitude, longitude])
   @@map("locations")
 }
 
@@ -132,6 +136,8 @@ model Checklist {
 
   userChecklists UserChecklist[]
 
+  @@index([category])
+  @@index([category, order])
   @@map("checklists")
 }
 
@@ -186,6 +192,8 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, read])
   @@map("notifications")
 }
 
@@ -232,6 +240,7 @@ model Contact {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("contacts")
 }
 
@@ -253,5 +262,7 @@ model PrayerTime {
   location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   @@unique([locationId, date])
+  @@index([locationId])
+  @@index([date])
   @@map("prayer_times")
 }

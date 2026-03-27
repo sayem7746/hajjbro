@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B5E20"/>
+      <stop offset="100%" stop-color="#2E7D32"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4B65A"/>
+      <stop offset="100%" stop-color="#C8A951"/>
+    </linearGradient>
+    <linearGradient id="kaabaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2A2A2A"/>
+      <stop offset="100%" stop-color="#1A1A1A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" opacity="0.6"/>
+
+  <!-- Decorative geometric border ring -->
+  <circle cx="256" cy="256" r="224" fill="none" stroke="url(#goldGrad)" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Mosque arch (mihrab shape) -->
+  <path d="M160 380 L160 200 Q160 120 256 90 Q352 120 352 200 L352 380"
+        fill="none" stroke="url(#goldGrad)" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Inner arch -->
+  <path d="M175 380 L175 210 Q175 140 256 112 Q337 140 337 210 L337 380"
+        fill="rgba(255,248,231,0.08)" stroke="url(#goldGrad)" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Crescent moon at top of arch -->
+  <circle cx="256" cy="72" r="22" fill="url(#goldGrad)"/>
+  <circle cx="264" cy="66" r="17" fill="url(#bgGrad)"/>
+
+  <!-- Star next to crescent -->
+  <polygon points="244,58 246,53 248,58 253,58 249,62 250,67 246,64 241,67 243,62 239,58"
+           fill="url(#goldGrad)" opacity="0.9"/>
+
+  <!-- Kaaba body -->
+  <rect x="216" y="240" width="80" height="80" rx="3" fill="url(#kaabaGrad)" stroke="#C8A951" stroke-width="2"/>
+
+  <!-- Kaaba gold band (Kiswa) -->
+  <rect x="216" y="260" width="80" height="16" fill="none" stroke="#C8A951" stroke-width="1.8"/>
+  <line x1="216" y1="268" x2="296" y2="268" stroke="#C8A951" stroke-width="0.8"/>
+
+  <!-- Kaaba door -->
+  <rect x="248" y="288" width="16" height="28" rx="8" ry="8" fill="#C8A951" opacity="0.7"/>
+
+  <!-- Kaaba top decoration -->
+  <line x1="220" y1="244" x2="292" y2="244" stroke="#C8A951" stroke-width="1" opacity="0.5"/>
+
+  <!-- Minarets left -->
+  <rect x="148" y="220" width="8" height="160" rx="2" fill="rgba(255,255,255,0.15)"/>
+  <circle cx="152" cy="218" r="6" fill="url(#goldGrad)" opacity="0.7"/>
+  <rect x="146" y="210" width="12" height="14" rx="2" fill="rgba(255,255,255,0.12)"/>
+
+  <!-- Minarets right -->
+  <rect x="356" y="220" width="8" height="160" rx="2" fill="rgba(255,255,255,0.15)"/>
+  <circle cx="360" cy="218" r="6" fill="url(#goldGrad)" opacity="0.7"/>
+  <rect x="354" y="210" width="12" height="14" rx="2" fill="rgba(255,255,255,0.12)"/>
+
+  <!-- Ground line -->
+  <line x1="130" y1="380" x2="382" y2="380" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Decorative dots on the ground line -->
+  <circle cx="140" cy="380" r="3" fill="url(#goldGrad)" opacity="0.5"/>
+  <circle cx="372" cy="380" r="3" fill="url(#goldGrad)" opacity="0.5"/>
+
+  <!-- Text: HajjBro -->
+  <text x="256" y="424" text-anchor="middle" font-family="'Georgia', 'Times New Roman', serif" font-size="42" font-weight="bold" fill="#ffffff" letter-spacing="3">
+    HajjBro
+  </text>
+
+  <!-- Subtle tagline -->
+  <text x="256" y="450" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="13" fill="rgba(255,255,255,0.6)" letter-spacing="4" text-transform="uppercase">
+    YOUR HAJJ COMPANION
+  </text>
+
+  <!-- Corner geometric decorations (Islamic geometric pattern hints) -->
+  <!-- Top-left -->
+  <path d="M60 100 L80 80 L100 100 L80 120 Z" fill="none" stroke="url(#goldGrad)" stroke-width="1" opacity="0.25"/>
+  <path d="M68 100 L80 88 L92 100 L80 112 Z" fill="none" stroke="url(#goldGrad)" stroke-width="0.6" opacity="0.2"/>
+
+  <!-- Top-right -->
+  <path d="M412 100 L432 80 L452 100 L432 120 Z" fill="none" stroke="url(#goldGrad)" stroke-width="1" opacity="0.25"/>
+  <path d="M420 100 L432 88 L444 100 L432 112 Z" fill="none" stroke="url(#goldGrad)" stroke-width="0.6" opacity="0.2"/>
+
+  <!-- Bottom-left -->
+  <path d="M72 440 L88 424 L104 440 L88 456 Z" fill="none" stroke="url(#goldGrad)" stroke-width="0.8" opacity="0.2"/>
+
+  <!-- Bottom-right -->
+  <path d="M408 440 L424 424 L440 440 L424 456 Z" fill="none" stroke="url(#goldGrad)" stroke-width="0.8" opacity="0.2"/>
+</svg>

@@ -9,6 +9,7 @@ import locationRoutes from './locationRoutes.js';
 import prayerTimesRoutes from './prayerTimesRoutes.js';
 import notificationScheduleRoutes from './notificationScheduleRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import weatherRoutes from './weatherRoutes.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/locations', locationRoutes);
 router.use('/prayer-times', prayerTimesRoutes);
 router.use('/notifications', notificationScheduleRoutes);
 router.use('/admin', adminRoutes);
+router.use('/weather', weatherRoutes);
 
 export default router;

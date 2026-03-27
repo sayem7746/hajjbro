@@ -1,0 +1,154 @@
+.weather-page {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --weather-line-makkah: #c62828;
+  --weather-line-madinah: #1565c0;
+}
+
+.weather-intro {
+  font-size: 0.9rem;
+  color: var(--ion-color-medium-shade, #666);
+  margin: 16px 0 8px;
+  line-height: 1.45;
+}
+
+.weather-center {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+.weather-error {
+  color: var(--ion-color-danger);
+  padding: 16px;
+}
+
+.weather-section-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  color: var(--ion-text-color);
+}
+
+.weather-hist-note {
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.weather-card {
+  margin-bottom: 12px;
+  border-radius: 12px;
+}
+
+.forecast-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.forecast-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: baseline;
+  font-size: 0.9rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.forecast-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.forecast-date {
+  font-weight: 500;
+  grid-column: 1 / -1;
+  color: var(--ion-color-medium-shade);
+  font-size: 0.8rem;
+}
+
+.forecast-temps {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.forecast-unit {
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: 2px;
+  opacity: 0.85;
+}
+
+.forecast-desc {
+  grid-column: 1;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+}
+
+.forecast-rain {
+  grid-column: 2;
+  font-size: 0.75rem;
+  color: var(--ion-color-primary);
+  justify-self: end;
+}
+
+.chart-card ion-card-content {
+  padding-bottom: 8px;
+}
+
+.temp-chart {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.chart-axis-label {
+  font-size: 9px;
+  fill: var(--ion-color-medium);
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.75rem;
+  margin-top: 12px;
+  color: var(--ion-color-medium-shade);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.legend-dot.makkah {
+  background: var(--weather-line-makkah);
+}
+
+.legend-dot.madinah {
+  background: var(--weather-line-madinah);
+}
+
+.chart-years {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+.chart-year-tick {
+  font-size: 0.65rem;
+  color: var(--ion-color-medium);
+  font-variant-numeric: tabular-nums;
+}

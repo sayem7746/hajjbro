@@ -1,11 +1,14 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { env } from './config/env.js';
 import { loggingMiddleware, notFoundHandler, globalErrorHandler } from './middleware/index.js';
+import { apiRateLimiter } from './middleware/rateLimit.js';
 import routes from './routes/index.js';
 
 const app = express();
 
+app.use(compression());
 app.use(
   cors({
     origin: (env.CORS_ORIGINS ?? '*') === '*' ? true : (env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()),
@@ -15,6 +18,7 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+app.use(apiRateLimiter);
 app.use(loggingMiddleware);
 
 app.get('/', (_req, res) => {

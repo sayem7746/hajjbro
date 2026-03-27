@@ -23,10 +23,12 @@ import {
   timeOutline,
   statsChartOutline,
   bookOutline,
+  partlySunnyOutline,
 } from 'ionicons/icons';
 import { useProgress } from '../contexts/ProgressContext';
 import { rituals } from '../data/rituals';
 import { defaultChecklist } from '../data/checklist';
+import logo from '../assets/logo.svg';
 import './Home.css';
 
 const Home: React.FC = () => {
@@ -44,6 +46,7 @@ const Home: React.FC = () => {
     { title: 'Checklist', icon: checkboxOutline, path: '/app/checklist', color: '#C8A951' },
     { title: 'Map', icon: mapOutline, path: '/app/map', color: '#5D4037' },
     { title: 'Prayer Times', icon: timeOutline, path: '/app/prayers', color: '#1565C0' },
+    { title: 'Weather', icon: partlySunnyOutline, path: '/app/weather', color: '#0277BD' },
     { title: 'All Rituals', icon: listOutline, path: '/app/rituals', color: '#6A1B9A' },
   ];
 
@@ -62,6 +65,7 @@ const Home: React.FC = () => {
         </IonHeader>
 
         <div className="home-hero">
+          <img src={logo} alt="HajjBro" className="home-logo" />
           <p className="hero-bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
           <h2 className="hero-title">Your Hajj Journey</h2>
           <p className="hero-subtitle">May Allah accept your Hajj and grant you Hajj Mabrur</p>
@@ -115,6 +119,23 @@ const Home: React.FC = () => {
             </IonCol>
           </IonRow>
         </IonGrid>
+
+        <div className="section-header">Weather & climate</div>
+        <IonCard className="weather-preview-card" button onClick={() => router.push('/app/weather')}>
+          <IonCardContent>
+            <div className="weather-preview-row">
+              <div className="weather-preview-icon">
+                <IonIcon icon={partlySunnyOutline} />
+              </div>
+              <div>
+                <div className="weather-preview-title">Makkah & Madinah</div>
+                <p className="weather-preview-text">
+                  7-day forecast and Hajj-season temperature history (early July averages).
+                </p>
+              </div>
+            </div>
+          </IonCardContent>
+        </IonCard>
 
         <div className="section-header">Quick Access</div>
         <IonGrid>

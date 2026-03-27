@@ -2,6 +2,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Prisma production optimization: add connection pool limit if not set
+if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL;
+  if (!url.includes('connection_limit') && !url.includes('pool_timeout')) {
+    const sep = url.includes('?') ? '&' : '?';
+    process.env.DATABASE_URL = `${url}${sep}connection_limit=10`;
+  }
+}
+
 const getEnv = (key: string, defaultValue?: string): string => {
   const value = process.env[key] ?? defaultValue;
   if (value === undefined) {
@@ -27,6 +36,8 @@ export const env = {
   LOG_LEVEL: getEnvOptional('LOG_LEVEL', 'info'),
   PRAYER_TIMES_API_BASE: getEnvOptional('PRAYER_TIMES_API_BASE', 'https://api.aladhan.com/v1'),
   SAUDI_TIMEZONE: getEnvOptional('SAUDI_TIMEZONE', 'Asia/Riyadh'),
+  RATE_LIMIT_MAX: parseInt(getEnvOptional('RATE_LIMIT_MAX', '100') ?? '100', 10),
+  RATE_LIMIT_AUTH_MAX: parseInt(getEnvOptional('RATE_LIMIT_AUTH_MAX', '10') ?? '10', 10),
   // Railway sets PORT and DATABASE_URL automatically
   isProduction: process.env.NODE_ENV === 'production',
   isDevelopment: process.env.NODE_ENV !== 'production',

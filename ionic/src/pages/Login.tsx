@@ -9,8 +9,9 @@ import {
   IonIcon,
   useIonRouter,
 } from '@ionic/react';
-import { logInOutline, eyeOutline, eyeOffOutline } from 'ionicons/icons';
+import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import { useAuth } from '../contexts/AuthContext';
+import logo from '../assets/logo.svg';
 import './Auth.css';
 
 const Login: React.FC = () => {
@@ -50,9 +51,7 @@ const Login: React.FC = () => {
         <div className="auth-container">
           <div className="auth-header">
             <div className="auth-logo">
-              <div className="logo-circle">
-                <IonIcon icon={logInOutline} />
-              </div>
+              <img src={logo} alt="HajjBro" className="logo-image" />
             </div>
             <h1 className="auth-title">HajjBro</h1>
             <p className="auth-subtitle">Your Hajj Companion</p>
