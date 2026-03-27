@@ -12,10 +12,12 @@ export async function getForecast(_req: Request, res: Response, next: NextFuncti
 
 export async function getHistoricalHajj(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const latestJuly = weatherService.getLatestCompleteJulyYear();
     const start = parseInt(String(req.query.startYear ?? '2015'), 10);
-    const end = parseInt(String(req.query.endYear ?? String(new Date().getFullYear() - 1)), 10);
+    const end = parseInt(String(req.query.endYear ?? String(latestJuly)), 10);
     const startYear = Number.isFinite(start) ? Math.max(1990, start) : 2015;
-    const endYear = Number.isFinite(end) ? Math.min(new Date().getFullYear(), end) : new Date().getFullYear() - 1;
+    let endYear = Number.isFinite(end) ? end : latestJuly;
+    endYear = Math.min(endYear, latestJuly);
     if (startYear > endYear) {
       res.status(400).json({ success: false, error: 'startYear must be <= endYear' });
       return;

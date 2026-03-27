@@ -2,6 +2,8 @@
  * Weather via Open-Meteo (no API key). Forecast + historical archive for Hajj-season analysis.
  */
 
+import { logger } from '../utils/logger.js';
+
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
 const OPEN_METEO_ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive';
 
@@ -92,7 +94,21 @@ function avgMaxForWindow(dailyMax: (number | null)[] | undefined): number | null
 }
 
 /**
+ * Latest calendar year Y for which July 1–15 is fully in the past (archive has no future dates).
+ * Open-Meteo archive returns errors if start_date/end_date include future days.
+ */
+export function getLatestCompleteJulyYear(now = new Date()): number {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth() + 1;
+  const d = now.getUTCDate();
+  if (m < 7) return y - 1;
+  if (m > 7) return y;
+  return d >= 16 ? y : y - 1;
+}
+
+/**
  * Average daily max temperature for July 1–15 each year (proxy for Hajj-season heat trends).
+ * Fetches sequentially to avoid Open-Meteo rate limits; failures become null values for that year.
  */
 export async function getHajjHistoricalTemperatures(
   startYear: number,
@@ -103,28 +119,35 @@ export async function getHajjHistoricalTemperatures(
 
   const { startMonth, startDay, endMonth, endDay } = HAJJ_HISTORICAL_WINDOW;
   const pad = (n: number) => String(n).padStart(2, '0');
-  const startDate = (y: number) =>
-    `${y}-${pad(startMonth)}-${pad(startDay)}`;
-  const endDate = (y: number) => `${y}-${pad(endMonth)}-${pad(endDay)}`;
+  const startDateStr = (yr: number) =>
+    `${yr}-${pad(startMonth)}-${pad(startDay)}`;
+  const endDateStr = (yr: number) => `${yr}-${pad(endMonth)}-${pad(endDay)}`;
 
-  const fetches = years.map(async (year) => {
-    const start = startDate(year);
-    const end = endDate(year);
+  const out: HistoricalYearPoint[] = [];
+
+  for (const year of years) {
+    const start = startDateStr(year);
+    const end = endDateStr(year);
     const q = `daily=temperature_2m_max&timezone=Asia/Riyadh&start_date=${start}&end_date=${end}`;
-    const [makkah, madinah] = await Promise.all([
-      fetchJson<{ daily: { temperature_2m_max?: (number | null)[] } }>(
-        `${OPEN_METEO_ARCHIVE}?latitude=${MAKKAH.lat}&longitude=${MAKKAH.lng}&${q}`
-      ),
-      fetchJson<{ daily: { temperature_2m_max?: (number | null)[] } }>(
-        `${OPEN_METEO_ARCHIVE}?latitude=${MADINAH.lat}&longitude=${MADINAH.lng}&${q}`
-      ),
-    ]);
-    return {
-      year,
-      makkahAvgMaxC: avgMaxForWindow(makkah.daily.temperature_2m_max),
-      medinaAvgMaxC: avgMaxForWindow(madinah.daily.temperature_2m_max),
-    };
-  });
+    try {
+      const [makkah, madinah] = await Promise.all([
+        fetchJson<{ daily?: { temperature_2m_max?: (number | null)[] } }>(
+          `${OPEN_METEO_ARCHIVE}?latitude=${MAKKAH.lat}&longitude=${MAKKAH.lng}&${q}`
+        ),
+        fetchJson<{ daily?: { temperature_2m_max?: (number | null)[] } }>(
+          `${OPEN_METEO_ARCHIVE}?latitude=${MADINAH.lat}&longitude=${MADINAH.lng}&${q}`
+        ),
+      ]);
+      out.push({
+        year,
+        makkahAvgMaxC: avgMaxForWindow(makkah.daily?.temperature_2m_max),
+        medinaAvgMaxC: avgMaxForWindow(madinah.daily?.temperature_2m_max),
+      });
+    } catch (e) {
+      logger.warn({ err: e, year }, 'Open-Meteo archive failed for Hajj historical year');
+      out.push({ year, makkahAvgMaxC: null, medinaAvgMaxC: null });
+    }
+  }
 
-  return Promise.all(fetches);
+  return out;
 }

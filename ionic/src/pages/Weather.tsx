@@ -65,7 +65,8 @@ const Weather: React.FC = () => {
     try {
       const [fc, hi] = await Promise.all([
         weatherApi.getForecast(),
-        weatherApi.getHistoricalHajj(2015, new Date().getFullYear() - 1),
+        // end year omitted: server caps to last complete July 1–15 window (avoids archive errors)
+        weatherApi.getHistoricalHajj(2015),
       ]);
       const d = fc.data.data;
       setMakkah(d.makkah);
