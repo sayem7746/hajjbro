@@ -10,8 +10,19 @@ const OPEN_METEO_ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive';
 /** Representative Hajj-season window in Gregorian (early July; Islamic Hajj dates move ~11 days/year). */
 export const HAJJ_HISTORICAL_WINDOW = { startMonth: 7, startDay: 1, endMonth: 7, endDay: 15 } as const;
 
-export const MAKKAH = { name: 'Makkah', lat: 21.4225, lng: 39.8262 };
-export const MADINAH = { name: 'Madinah', lat: 24.4672, lng: 39.6112 };
+export const MAKKAH = { name: 'Makkah', lat: 21.4225, lng: 39.8262, slug: 'makkah' as const };
+export const MADINAH = { name: 'Madinah', lat: 24.4672, lng: 39.6112, slug: 'madinah' as const };
+
+export type HolyCitySlug = 'makkah' | 'madinah';
+export type ForecastRange = '7d' | '30d' | '365d';
+
+function coordsForCity(slug: HolyCitySlug) {
+  return slug === 'makkah' ? MAKKAH : MADINAH;
+}
+
+function utcYmd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export type DailyForecast = {
   date: string;
@@ -86,6 +97,42 @@ export async function getForecast7d(): Promise<{ makkah: CityForecast; madinah: 
   };
 }
 
+/**
+ * One city: 7-day forecast, or 30 / 365 days of archived daily values (ending yesterday UTC).
+ */
+export async function getCityForecastRange(
+  city: HolyCitySlug,
+  range: ForecastRange
+): Promise<{ city: string; range: ForecastRange; daily: DailyForecast[] }> {
+  const { name, lat, lng } = coordsForCity(city);
+
+  if (range === '7d') {
+    const params =
+      'daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=Asia/Riyadh&forecast_days=7';
+    const json = await fetchJson<{ daily: OpenMeteoDaily }>(
+      `${OPEN_METEO}?latitude=${lat}&longitude=${lng}&${params}`
+    );
+    return { city: name, range, daily: mapDaily(json.daily) };
+  }
+
+  const end = new Date();
+  end.setUTCDate(end.getUTCDate() - 1);
+  const start = new Date(end);
+  if (range === '30d') {
+    start.setUTCDate(start.getUTCDate() - 29);
+  } else {
+    start.setUTCDate(start.getUTCDate() - 364);
+  }
+
+  const startStr = utcYmd(start);
+  const endStr = utcYmd(end);
+  const q = `daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia/Riyadh&start_date=${startStr}&end_date=${endStr}`;
+  const json = await fetchJson<{ daily: OpenMeteoDaily }>(
+    `${OPEN_METEO_ARCHIVE}?latitude=${lat}&longitude=${lng}&${q}`
+  );
+  return { city: name, range, daily: mapDaily(json.daily) };
+}
+
 function avgMaxForWindow(dailyMax: (number | null)[] | undefined): number | null {
   if (!dailyMax?.length) return null;
   const nums = dailyMax.filter((v): v is number => v != null && !Number.isNaN(v));
@@ -93,35 +140,42 @@ function avgMaxForWindow(dailyMax: (number | null)[] | undefined): number | null
   return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
 }
 
-/**
- * Latest calendar year Y for which July 1–15 is fully in the past (archive has no future dates).
- * Open-Meteo archive returns errors if start_date/end_date include future days.
- */
-export function getLatestCompleteJulyYear(now = new Date()): number {
+/** Latest Gregorian year Y for which the season end (month/day) has passed (archive-safe). */
+export function getLatestCompleteYearForSeasonWindow(endMonth: number, endDay: number, now = new Date()): number {
   const y = now.getUTCFullYear();
-  const m = now.getUTCMonth() + 1;
-  const d = now.getUTCDate();
-  if (m < 7) return y - 1;
-  if (m > 7) return y;
-  return d >= 16 ? y : y - 1;
+  const endUtc = Date.UTC(y, endMonth - 1, endDay, 23, 59, 59);
+  if (now.getTime() > endUtc) return y;
+  return y - 1;
 }
 
-/**
- * Average daily max temperature for July 1–15 each year (proxy for Hajj-season heat trends).
- * Fetches sequentially to avoid Open-Meteo rate limits; failures become null values for that year.
- */
+/** @deprecated use getLatestCompleteYearForSeasonWindow(7, 15) */
+export function getLatestCompleteJulyYear(now = new Date()): number {
+  return getLatestCompleteYearForSeasonWindow(7, 15, now);
+}
+
+export type HajjSeasonWindow = {
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+};
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** Same Gregorian month/day window each year (adjust yearly to match Hajj in Gregorian). */
 export async function getHajjHistoricalTemperatures(
   startYear: number,
-  endYear: number
+  endYear: number,
+  window: HajjSeasonWindow
 ): Promise<HistoricalYearPoint[]> {
   const years: number[] = [];
   for (let y = startYear; y <= endYear; y++) years.push(y);
 
-  const { startMonth, startDay, endMonth, endDay } = HAJJ_HISTORICAL_WINDOW;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const startDateStr = (yr: number) =>
-    `${yr}-${pad(startMonth)}-${pad(startDay)}`;
-  const endDateStr = (yr: number) => `${yr}-${pad(endMonth)}-${pad(endDay)}`;
+  const { startMonth, startDay, endMonth, endDay } = window;
+  const startDateStr = (yr: number) => `${yr}-${pad2(startMonth)}-${pad2(startDay)}`;
+  const endDateStr = (yr: number) => `${yr}-${pad2(endMonth)}-${pad2(endDay)}`;
 
   const out: HistoricalYearPoint[] = [];
 

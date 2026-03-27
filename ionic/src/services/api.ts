@@ -51,14 +51,35 @@ export const prayerTimesApi = {
     }),
 };
 
+export type WeatherRange = '7d' | '30d' | '365d';
+
+export type HajjSeasonQuery = {
+  startYear?: number;
+  endYear?: number;
+  startMonth?: number;
+  startDay?: number;
+  endMonth?: number;
+  endDay?: number;
+};
+
 export const weatherApi = {
   getForecast: () => api.get('/weather/forecast'),
-  getHistoricalHajj: (startYear?: number, endYear?: number) =>
+  getForecastRange: (city: 'makkah' | 'madinah', range: WeatherRange) =>
+    api.get('/weather/forecast-range', {
+      params: { city, range },
+      timeout: 90000,
+    }),
+  getHistoricalHajj: (q?: HajjSeasonQuery) =>
     api.get('/weather/historical-hajj', {
       params: {
-        ...(startYear != null && { startYear }),
-        ...(endYear != null && { endYear }),
+        ...(q?.startYear != null && { startYear: q.startYear }),
+        ...(q?.endYear != null && { endYear: q.endYear }),
+        ...(q?.startMonth != null && { startMonth: q.startMonth }),
+        ...(q?.startDay != null && { startDay: q.startDay }),
+        ...(q?.endMonth != null && { endMonth: q.endMonth }),
+        ...(q?.endDay != null && { endDay: q.endDay }),
       },
+      timeout: 90000,
     }),
 };
 

@@ -14,8 +14,16 @@ import {
   IonRefresherContent,
   IonBackButton,
   IonButtons,
+  IonSegment,
+  IonSegmentButton,
+  IonLabel,
+  IonItem,
+  IonDatetime,
+  IonDatetimeButton,
+  IonModal,
+  IonText,
 } from '@ionic/react';
-import { weatherApi } from '../services/api';
+import { weatherApi, type WeatherRange } from '../services/api';
 import './Weather.css';
 
 type DailyForecast = {
@@ -24,11 +32,6 @@ type DailyForecast = {
   tempMinC: number | null;
   weatherCode: number | null;
   precipProbMax: number | null;
-};
-
-type CityForecast = {
-  city: string;
-  daily: DailyForecast[];
 };
 
 type HistoricalPoint = {
@@ -51,45 +54,156 @@ function weatherLabel(code: number | null): string {
   return '';
 }
 
+const RANGE_LABEL: Record<WeatherRange, string> = {
+  '7d': '7 days',
+  '30d': '1 month',
+  '365d': '1 year',
+};
+
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
+
+/** Wheel must span real years so the year column scrolls; API still uses month/day only. */
+const SEASON_PICKER_MIN = '1990-01-01';
+const SEASON_PICKER_MAX = '2040-12-31';
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function buildLinePath(
+  values: (number | null)[],
+  xFor: (i: number) => number,
+  yFor: (t: number) => number
+): string {
+  const segments: string[] = [];
+  let started = false;
+  values.forEach((v, i) => {
+    if (v == null) {
+      started = false;
+      return;
+    }
+    const x = xFor(i);
+    const y = yFor(v);
+    segments.push(`${started ? 'L' : 'M'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    started = true;
+  });
+  return segments.join(' ');
+}
+
 const Weather: React.FC = () => {
-  const [makkah, setMakkah] = useState<CityForecast | null>(null);
-  const [madinah, setMadinah] = useState<CityForecast | null>(null);
+  const [cityTab, setCityTab] = useState<'makkah' | 'madinah'>('makkah');
+  const [range, setRange] = useState<WeatherRange>('7d');
+  const [forecastDaily, setForecastDaily] = useState<DailyForecast[]>([]);
+  const [forecastLoading, setForecastLoading] = useState(true);
+
   const [historical, setHistorical] = useState<HistoricalPoint[]>([]);
   const [histNote, setHistNote] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [histLoading, setHistLoading] = useState(true);
+
+  const [seasonStartMonth, setSeasonStartMonth] = useState(7);
+  const [seasonStartDay, setSeasonStartDay] = useState(1);
+  const [seasonEndMonth, setSeasonEndMonth] = useState(7);
+  const [seasonEndDay, setSeasonEndDay] = useState(15);
+  /** Display year for wheel only (ignored by API). */
+  const [seasonPickerYearStart, setSeasonPickerYearStart] = useState(2000);
+  const [seasonPickerYearEnd, setSeasonPickerYearEnd] = useState(2000);
+
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const loadForecast = useCallback(async () => {
+    setForecastLoading(true);
     setErr(null);
-    setLoading(true);
     try {
-      const [fc, hi] = await Promise.all([
-        weatherApi.getForecast(),
-        // end year omitted: server caps to last complete July 1–15 window (avoids archive errors)
-        weatherApi.getHistoricalHajj(2015),
-      ]);
-      const d = fc.data.data;
-      setMakkah(d.makkah);
-      setMadinah(d.madinah);
+      const res = await weatherApi.getForecastRange(cityTab, range);
+      setForecastDaily(res.data.data.daily);
+    } catch {
+      setErr('Could not load forecast.');
+      setForecastDaily([]);
+    } finally {
+      setForecastLoading(false);
+    }
+  }, [cityTab, range]);
+
+  const loadHistorical = useCallback(async () => {
+    setHistLoading(true);
+    try {
+      const hi = await weatherApi.getHistoricalHajj({
+        startYear: 2015,
+        startMonth: seasonStartMonth,
+        startDay: seasonStartDay,
+        endMonth: seasonEndMonth,
+        endDay: seasonEndDay,
+      });
       setHistorical(hi.data.data.series);
       setHistNote(hi.data.data.description ?? '');
     } catch {
-      setErr('Could not load weather. Check your connection and API URL.');
+      setHistorical([]);
     } finally {
-      setLoading(false);
+      setHistLoading(false);
     }
-  }, []);
+  }, [seasonStartMonth, seasonStartDay, seasonEndMonth, seasonEndDay]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadForecast();
+  }, [loadForecast]);
 
-  const chart = useMemo(() => {
-    const pts = historical.filter(
-      (p) => p.makkahAvgMaxC != null || p.medinaAvgMaxC != null
-    );
+  useEffect(() => {
+    void loadHistorical();
+  }, [loadHistorical]);
+
+  const refreshAll = useCallback(async () => {
+    setErr(null);
+    await Promise.all([loadForecast(), loadHistorical()]);
+  }, [loadForecast, loadHistorical]);
+
+  const forecastChart = useMemo(() => {
+    if (range === '7d' || !forecastDaily.length) return null;
+    const maxT = forecastDaily.map((d) => d.tempMaxC);
+    const minT = forecastDaily.map((d) => d.tempMinC);
+    const nums = [...maxT, ...minT].filter((v): v is number => v != null && !Number.isNaN(v));
+    if (nums.length < 2) return null;
+    const hi = Math.max(...nums) + 1;
+    const lo = Math.min(...nums) - 1;
+    const w = 340;
+    const h = 160;
+    const pad = 32;
+    const innerW = w - pad * 2;
+    const innerH = h - pad * 2;
+    const n = forecastDaily.length;
+    const xFor = (i: number) => pad + (i / Math.max(1, n - 1)) * innerW;
+    const yFor = (t: number) => pad + innerH - ((t - lo) / (hi - lo || 1)) * innerH;
+    return {
+      w,
+      h,
+      pad,
+      pathMax: buildLinePath(maxT, xFor, yFor),
+      pathMin: buildLinePath(minT, xFor, yFor),
+      hi,
+      lo,
+      firstDate: forecastDaily[0]?.date,
+      lastDate: forecastDaily[forecastDaily.length - 1]?.date,
+    };
+  }, [forecastDaily, range]);
+
+  const hajjChart = useMemo(() => {
+    const pts = historical.filter((p) => p.makkahAvgMaxC != null || p.medinaAvgMaxC != null);
     if (pts.length < 2) return null;
-    const allVals = pts.flatMap((p) => [p.makkahAvgMaxC, p.medinaAvgMaxC].filter((v): v is number => v != null));
+    const allVals = pts.flatMap((p) =>
+      [p.makkahAvgMaxC, p.medinaAvgMaxC].filter((v): v is number => v != null)
+    );
     const minT = Math.min(...allVals) - 1;
     const maxT = Math.max(...allVals) + 1;
     const w = 320;
@@ -120,6 +234,35 @@ const Weather: React.FC = () => {
     return { pts, minT, maxT, w, h, pad, line };
   }, [historical]);
 
+  const refStart = `${seasonPickerYearStart}-${pad2(seasonStartMonth)}-${pad2(seasonStartDay)}`;
+  const refEnd = `${seasonPickerYearEnd}-${pad2(seasonEndMonth)}-${pad2(seasonEndDay)}`;
+
+  const parseIsoDateParts = (value: string | string[] | null | undefined) => {
+    const v = Array.isArray(value) ? value[0] : value;
+    if (typeof v !== 'string' || v.length < 10) return null;
+    const y = parseInt(v.slice(0, 4), 10);
+    const m = parseInt(v.slice(5, 7), 10);
+    const d = parseInt(v.slice(8, 10), 10);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+    return { y, m, d };
+  };
+
+  const onSeasonStartChange = (value: string | string[] | null | undefined) => {
+    const parts = parseIsoDateParts(value);
+    if (!parts) return;
+    setSeasonPickerYearStart(parts.y);
+    setSeasonStartMonth(parts.m);
+    setSeasonStartDay(parts.d);
+  };
+
+  const onSeasonEndChange = (value: string | string[] | null | undefined) => {
+    const parts = parseIsoDateParts(value);
+    if (!parts) return;
+    setSeasonPickerYearEnd(parts.y);
+    setSeasonEndMonth(parts.m);
+    setSeasonEndDay(parts.d);
+  };
+
   return (
     <IonPage>
       <IonHeader>
@@ -134,7 +277,7 @@ const Weather: React.FC = () => {
         <IonRefresher
           slot="fixed"
           onIonRefresh={async (e) => {
-            await load();
+            await refreshAll();
             e.detail.complete();
           }}
         >
@@ -142,28 +285,118 @@ const Weather: React.FC = () => {
         </IonRefresher>
 
         <p className="weather-intro">
-          Seven-day forecast for the holy cities, plus long-run temperature trends during an approximate Hajj-season
-          window (early July).
+          Forecasts and archived temperatures for Makkah and Madinah. Choose a Hajj-season window (Gregorian
+          month/day, repeated each year) to compare trends across years.
         </p>
 
-        {loading && (
+        {err && <p className="weather-error">{err}</p>}
+
+        <h2 className="weather-section-title">City forecast</h2>
+        <IonSegment
+          value={cityTab}
+          onIonChange={(e) => {
+            const v = e.detail.value as string;
+            if (v === 'makkah' || v === 'madinah') setCityTab(v);
+          }}
+          className="weather-segment"
+        >
+          <IonSegmentButton value="makkah">
+            <IonLabel>Makkah</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="madinah">
+            <IonLabel>Madinah</IonLabel>
+          </IonSegmentButton>
+        </IonSegment>
+
+        <IonSegment
+          value={range}
+          onIonChange={(e) => {
+            const v = e.detail.value as WeatherRange;
+            if (v === '7d' || v === '30d' || v === '365d') setRange(v);
+          }}
+          className="weather-segment range-segment"
+        >
+          <IonSegmentButton value="7d">
+            <IonLabel>7 days</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="30d">
+            <IonLabel>1 month</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="365d">
+            <IonLabel>1 year</IonLabel>
+          </IonSegmentButton>
+        </IonSegment>
+
+        {forecastLoading && (
           <div className="weather-center">
             <IonSpinner name="crescent" />
           </div>
         )}
-        {err && <p className="weather-error">{err}</p>}
 
-        {!loading && makkah && madinah && (
+        {!forecastLoading && forecastDaily.length > 0 && (
           <>
-            <h2 className="weather-section-title">7-day forecast</h2>
-            {[makkah, madinah].map((city) => (
-              <IonCard key={city.city} className="weather-card">
-                <IonCardHeader>
-                  <IonCardTitle>{city.city}</IonCardTitle>
-                </IonCardHeader>
+            <IonText color="medium">
+              <p className="range-caption">
+                {cityTab === 'makkah' ? 'Makkah' : 'Madinah'} · {RANGE_LABEL[range]}
+                {range !== '7d' && forecastChart && (
+                  <>
+                    {' '}
+                    ({forecastChart.firstDate} → {forecastChart.lastDate})
+                  </>
+                )}
+              </p>
+            </IonText>
+
+            {range !== '7d' && forecastChart && (
+              <IonCard className="weather-card chart-card">
+                <IonCardContent>
+                  <svg
+                    viewBox={`0 0 ${forecastChart.w} ${forecastChart.h}`}
+                    className="temp-chart forecast-range-chart"
+                    role="img"
+                    aria-label="Temperature min and max over selected range"
+                  >
+                    <text x={forecastChart.pad} y={18} className="chart-axis-label">
+                      {forecastChart.hi.toFixed(0)}°C
+                    </text>
+                    <text x={forecastChart.pad} y={forecastChart.h - 4} className="chart-axis-label">
+                      {forecastChart.lo.toFixed(0)}°C
+                    </text>
+                    <path
+                      d={forecastChart.pathMax}
+                      fill="none"
+                      stroke="var(--weather-line-max)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d={forecastChart.pathMin}
+                      fill="none"
+                      stroke="var(--weather-line-min)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray="4 3"
+                    />
+                  </svg>
+                  <div className="chart-legend">
+                    <span>
+                      <i className="legend-dot legend-dot-max" /> Daily max
+                    </span>
+                    <span>
+                      <i className="legend-dot legend-dot-min" /> Daily min
+                    </span>
+                  </div>
+                </IonCardContent>
+              </IonCard>
+            )}
+
+            {range === '7d' && (
+              <IonCard className="weather-card">
                 <IonCardContent>
                   <div className="forecast-rows">
-                    {city.daily.map((d) => (
+                    {forecastDaily.map((d) => (
                       <div key={d.date} className="forecast-row">
                         <span className="forecast-date">{d.date}</span>
                         <span className="forecast-temps">
@@ -181,55 +414,23 @@ const Weather: React.FC = () => {
                   </div>
                 </IonCardContent>
               </IonCard>
-            ))}
+            )}
 
-            <h2 className="weather-section-title">Hajj-season temperature trend</h2>
-            <p className="weather-hist-note">{histNote}</p>
-            {chart && (
-              <IonCard className="weather-card chart-card">
+            {range !== '7d' && (
+              <IonCard className="weather-card">
                 <IonCardContent>
-                  <svg
-                    viewBox={`0 0 ${chart.w} ${chart.h}`}
-                    className="temp-chart"
-                    role="img"
-                    aria-label="Line chart of average maximum temperatures for Makkah and Madinah"
-                  >
-                    <text x={chart.pad} y={16} className="chart-axis-label">
-                      {chart.maxT.toFixed(0)}°C
-                    </text>
-                    <text x={chart.pad} y={chart.h - 8} className="chart-axis-label">
-                      {chart.minT.toFixed(0)}°C
-                    </text>
-                    <path
-                      d={chart.line('makkahAvgMaxC')}
-                      fill="none"
-                      stroke="var(--weather-line-makkah)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d={chart.line('medinaAvgMaxC')}
-                      fill="none"
-                      stroke="var(--weather-line-madinah)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <div className="chart-legend">
-                    <span>
-                      <i className="legend-dot makkah" /> Makkah (avg daily max, 1–15 Jul)
-                    </span>
-                    <span>
-                      <i className="legend-dot madinah" /> Madinah (avg daily max, 1–15 Jul)
-                    </span>
-                  </div>
-                  <div className="chart-years">
-                    {chart.pts.map((p) => (
-                      <span key={p.year} className="chart-year-tick">
-                        {p.year}
-                      </span>
+                  <div className="forecast-rows compact">
+                    {forecastDaily.map((d) => (
+                      <div key={d.date} className="forecast-row">
+                        <span className="forecast-date">{d.date}</span>
+                        <span className="forecast-temps">
+                          {d.tempMaxC != null && d.tempMinC != null
+                            ? `${Math.round(d.tempMinC)}° / ${Math.round(d.tempMaxC)}°`
+                            : '—'}
+                          <span className="forecast-unit">C</span>
+                        </span>
+                        <span className="forecast-desc">{weatherLabel(d.weatherCode)}</span>
+                      </div>
                     ))}
                   </div>
                 </IonCardContent>
@@ -237,7 +438,130 @@ const Weather: React.FC = () => {
             )}
           </>
         )}
+
+        <h2 className="weather-section-title">Hajj-season temperature trend</h2>
+        <p className="weather-hist-note">{histNote}</p>
+        <p className="weather-hist-note calendar-hint">
+          Pick the Gregorian window that matches Hajj for the years you care about (dates shift each year). Same
+          month/day is applied each year. The year in the picker is only for scrolling—trends are still month/day
+          across years.
+        </p>
+
+        <IonCard className="weather-card season-card">
+          <IonCardContent>
+            <div className="season-pickers">
+              <IonItem lines="none" className="season-datetime-item">
+                <IonLabel position="stacked">Season start</IonLabel>
+                <IonDatetimeButton datetime="hajj-season-start">
+                  <span slot="date-target" className="season-date-target">
+                    {MONTH_SHORT[seasonStartMonth - 1]} {seasonStartDay}
+                  </span>
+                </IonDatetimeButton>
+              </IonItem>
+              <IonItem lines="none" className="season-datetime-item">
+                <IonLabel position="stacked">Season end</IonLabel>
+                <IonDatetimeButton datetime="hajj-season-end">
+                  <span slot="date-target" className="season-date-target">
+                    {MONTH_SHORT[seasonEndMonth - 1]} {seasonEndDay}
+                  </span>
+                </IonDatetimeButton>
+              </IonItem>
+            </div>
+            <IonText color="medium">
+              <p className="season-window-text">
+                Window: {pad2(seasonStartMonth)}/{pad2(seasonStartDay)} → {pad2(seasonEndMonth)}/
+                {pad2(seasonEndDay)} (each year)
+              </p>
+            </IonText>
+          </IonCardContent>
+        </IonCard>
+
+        {histLoading && (
+          <div className="weather-center">
+            <IonSpinner name="crescent" />
+          </div>
+        )}
+
+        {!histLoading && hajjChart && (
+          <IonCard className="weather-card chart-card">
+            <IonCardHeader>
+              <IonCardTitle className="hajj-chart-title">Avg daily max (°C) by year</IonCardTitle>
+            </IonCardHeader>
+            <IonCardContent>
+              <svg
+                viewBox={`0 0 ${hajjChart.w} ${hajjChart.h}`}
+                className="temp-chart"
+                role="img"
+                aria-label="Line chart of average maximum temperatures for Makkah and Madinah"
+              >
+                <text x={hajjChart.pad} y={16} className="chart-axis-label">
+                  {hajjChart.maxT.toFixed(0)}°C
+                </text>
+                <text x={hajjChart.pad} y={hajjChart.h - 8} className="chart-axis-label">
+                  {hajjChart.minT.toFixed(0)}°C
+                </text>
+                <path
+                  d={hajjChart.line('makkahAvgMaxC')}
+                  fill="none"
+                  stroke="var(--weather-line-makkah)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d={hajjChart.line('medinaAvgMaxC')}
+                  fill="none"
+                  stroke="var(--weather-line-madinah)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <div className="chart-legend">
+                <span>
+                  <i className="legend-dot makkah" /> Makkah
+                </span>
+                <span>
+                  <i className="legend-dot madinah" /> Madinah
+                </span>
+              </div>
+              <div className="chart-years">
+                {hajjChart.pts.map((p) => (
+                  <span key={p.year} className="chart-year-tick">
+                    {p.year}
+                  </span>
+                ))}
+              </div>
+            </IonCardContent>
+          </IonCard>
+        )}
+
+        <div style={{ height: 24 }} />
       </IonContent>
+
+      <IonModal keepContentsMounted>
+        <IonDatetime
+          id="hajj-season-start"
+          presentation="date"
+          min={SEASON_PICKER_MIN}
+          max={SEASON_PICKER_MAX}
+          value={refStart}
+          preferWheel
+          onIonChange={(e) => onSeasonStartChange(e.detail.value)}
+        />
+      </IonModal>
+
+      <IonModal keepContentsMounted>
+        <IonDatetime
+          id="hajj-season-end"
+          presentation="date"
+          min={SEASON_PICKER_MIN}
+          max={SEASON_PICKER_MAX}
+          value={refEnd}
+          preferWheel
+          onIonChange={(e) => onSeasonEndChange(e.detail.value)}
+        />
+      </IonModal>
     </IonPage>
   );
 };
