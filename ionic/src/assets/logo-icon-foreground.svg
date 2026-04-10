@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="fgGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0E4B0"/>
+      <stop offset="100%" stop-color="#C8A951"/>
+    </linearGradient>
+    <linearGradient id="fgKaba" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5C5C5C"/>
+      <stop offset="100%" stop-color="#2A2A2A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="118" r="38" fill="url(#fgGold)"/>
+  <circle cx="274" cy="106" r="30" fill="#1B5E20"/>
+  <polygon points="218,90 222,74 228,90 238,90 232,98 234,110 224,104 214,110 216,98 208,90" fill="url(#fgGold)"/>
+  <path d="M130 410 V228 Q130 148 256 116 Q382 148 382 228 V410" fill="none" stroke="url(#fgGold)" stroke-width="6" stroke-linecap="round" opacity="0.65"/>
+  <rect x="188" y="252" width="136" height="128" rx="5" fill="url(#fgKaba)" stroke="url(#fgGold)" stroke-width="3.5"/>
+  <rect x="188" y="286" width="136" height="26" fill="none" stroke="url(#fgGold)" stroke-width="2.5"/>
+  <rect x="228" y="318" width="56" height="42" rx="12" fill="url(#fgGold)" opacity="0.92"/>
+  <line x1="108" y1="410" x2="404" y2="410" stroke="url(#fgGold)" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+</svg>

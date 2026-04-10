@@ -1,0 +1,76 @@
+/* Keep header above the PDF layer (fullscreen content can paint over it on some WebViews). */
+.book-hajj24-pdf-page ion-header.book-hajj24-pdf-header {
+  position: relative;
+  z-index: 200;
+}
+
+.book-hajj24-pdf-content {
+  --overflow: hidden;
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  position: relative;
+}
+
+/* Fill IonContent so iframe + chrome split height reliably. */
+.book-hajj24-pdf-outer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Always-visible strip above the iframe so back is never covered by the PDF viewer. */
+.book-hajj24-pdf-chrome {
+  flex-shrink: 0;
+  z-index: 50;
+  position: relative;
+  padding: 8px 12px;
+  background: var(--ion-toolbar-background);
+  border-bottom: 1px solid rgba(var(--ion-text-color-rgb), 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.book-hajj24-pdf-chrome-btn {
+  margin: 0;
+  --padding-start: 12px;
+  --padding-end: 14px;
+}
+
+.book-hajj24-pdf-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  background: var(--ion-background-color);
+}
+
+.book-hajj24-pdf-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--ion-background-color);
+  color: var(--ion-text-color);
+}
+
+.book-hajj24-pdf-loading p {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.book-hajj24-pdf-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--ion-background-color);
+}

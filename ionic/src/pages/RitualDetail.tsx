@@ -12,25 +12,33 @@ import {
   IonChip,
   IonLabel,
 } from '@ionic/react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { checkmarkCircle, ellipseOutline, locationOutline } from 'ionicons/icons';
 import { useOfflineRituals } from '../hooks/useOfflineData';
 import { useProgress } from '../contexts/ProgressContext';
 import './RitualDetail.css';
 
+type RitualLocationState = { fromBookHajjSection?: boolean };
+
 const RitualDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation<RitualLocationState>();
   const { rituals } = useOfflineRituals();
   const { isRitualComplete, toggleRitual } = useProgress();
 
   const ritual = rituals.find((r) => r.id === id);
+  const backFromGuide = Boolean(location.state?.fromBookHajjSection);
+
   if (!ritual) {
     return (
       <IonPage>
         <IonHeader>
           <IonToolbar>
             <IonButtons slot="start">
-              <IonBackButton defaultHref="/app/rituals" />
+              <IonBackButton
+                defaultHref="/app/rituals"
+                text={backFromGuide ? 'Guide' : undefined}
+              />
             </IonButtons>
             <IonTitle>Not Found</IonTitle>
           </IonToolbar>
@@ -49,7 +57,10 @@ const RitualDetail: React.FC = () => {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/app/rituals" />
+            <IonBackButton
+              defaultHref="/app/rituals"
+              text={backFromGuide ? 'Guide' : undefined}
+            />
           </IonButtons>
           <IonTitle>{ritual.title}</IonTitle>
         </IonToolbar>

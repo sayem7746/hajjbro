@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "cap:sync": "npm run build && npx cap sync",
+    "icons": "node scripts/generate-app-icons.mjs",
     "preview": "vite preview",
     "test.e2e": "cypress run",
     "test.unit": "vitest",
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor/android": "8.2.0",
     "@capacitor/app": "8.0.1",
     "@capacitor/core": "8.2.0",
     "@capacitor/geolocation": "^8.1.0",
@@ -52,6 +55,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
     "jsdom": "^22.1.0",
+    "sharp": "^0.33.5",
     "terser": "^5.4.0",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.24.0",

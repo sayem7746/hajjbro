@@ -11,7 +11,7 @@ import {
 } from '@ionic/react';
 import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '../assets/logo.svg';
+import logo from '../assets/logo-icon.svg';
 import './Auth.css';
 
 const Register: React.FC = () => {

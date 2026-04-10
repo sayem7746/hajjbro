@@ -177,6 +177,17 @@
   margin-top: 4px;
 }
 
+.guide-preview-card {
+  margin: 0 8px 16px;
+  border-radius: 14px;
+  border-left: 4px solid var(--ion-color-primary);
+  box-shadow: 0 2px 12px rgba(27, 94, 32, 0.1);
+}
+
+.guide-preview-icon {
+  background: linear-gradient(145deg, #1b5e20, #2e7d32) !important;
+}
+
 .weather-preview-card {
   margin: 0 8px 16px;
   border-radius: 14px;

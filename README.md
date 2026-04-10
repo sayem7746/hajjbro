@@ -123,6 +123,14 @@ prisma/
 - **Contact** – emergency / travel contacts
 - **PrayerTime** – times per location/date
 
+## Documentation
+
+- **[Book Hajj 24 booklet](docs/book-hajj-24.md)** — Source metadata, English outline, extraction notes, and a plan for how to depict this material in docs and the app (crosswalk to rituals/locations).
+
+**Ionic app:** Home → **Book Hajj 24** card or **Hajj Guide** quick link opens `/app/guide` (expandable sections; chips link to matching rituals). The bundled PDF is `ionic/public/book-hajj-24.pdf`; **Open PDF reader** goes to `/app/guide/pdf` (embedded viewer; toolbar can open the same file in the browser).
+
+**App logo:** Vector marks live in `ionic/src/assets/logo-icon.svg` (launcher / UI) and `logo.svg` (optional full wordmark). After editing SVGs, run `cd ionic && npm run icons` to regenerate favicon, PWA icons, and iOS/Android launcher assets, then `npm run cap:sync` for native projects.
+
 ## License
 
 MIT

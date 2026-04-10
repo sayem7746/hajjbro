@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HajjBro</string>
+    <string name="title_activity_main">HajjBro</string>
+    <string name="package_name">com.hajjbro.app</string>
+    <string name="custom_url_scheme">com.hajjbro.app</string>
+</resources>

@@ -24,11 +24,12 @@ import {
   statsChartOutline,
   bookOutline,
   partlySunnyOutline,
+  libraryOutline,
 } from 'ionicons/icons';
 import { useProgress } from '../contexts/ProgressContext';
 import { rituals } from '../data/rituals';
 import { defaultChecklist } from '../data/checklist';
-import logo from '../assets/logo.svg';
+import logo from '../assets/logo-icon.svg';
 import './Home.css';
 
 const Home: React.FC = () => {
@@ -41,6 +42,7 @@ const Home: React.FC = () => {
   );
 
   const quickLinks = [
+    { title: 'Hajj Guide', icon: libraryOutline, path: '/app/guide', color: '#2E7D32' },
     { title: 'Rituals', icon: bookOutline, path: '/app/rituals', color: '#1B5E20' },
     { title: 'Progress', icon: statsChartOutline, path: '/app/progress', color: '#00695C' },
     { title: 'Checklist', icon: checkboxOutline, path: '/app/checklist', color: '#C8A951' },
@@ -119,6 +121,23 @@ const Home: React.FC = () => {
             </IonCol>
           </IonRow>
         </IonGrid>
+
+        <div className="section-header">Hajj guide</div>
+        <IonCard className="guide-preview-card" button onClick={() => router.push('/app/guide')}>
+          <IonCardContent>
+            <div className="weather-preview-row">
+              <div className="weather-preview-icon guide-preview-icon">
+                <IonIcon icon={libraryOutline} />
+              </div>
+              <div>
+                <div className="weather-preview-title">Book Hajj 24</div>
+                <p className="weather-preview-text">
+                  Summarized reference: method, adab, ‘Arafāt, ṭawāf, Minā, women’s notes, and more—linked to rituals here.
+                </p>
+              </div>
+            </div>
+          </IonCardContent>
+        </IonCard>
 
         <div className="section-header">Weather & climate</div>
         <IonCard className="weather-preview-card" button onClick={() => router.push('/app/weather')}>
