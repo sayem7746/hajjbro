@@ -9,7 +9,6 @@ import {
   IonCardHeader,
   IonCardTitle,
   IonCardContent,
-  IonSpinner,
   IonRefresher,
   IonRefresherContent,
   IonBackButton,
@@ -265,15 +264,15 @@ const Weather: React.FC = () => {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
+      <IonHeader className="ion-no-border">
+        <IonToolbar className="hajj-glass-toolbar">
           <IonButtons slot="start">
-            <IonBackButton defaultHref="/app/home" />
+            <IonBackButton defaultHref="/app/home" className="min-h-touch min-w-touch" />
           </IonButtons>
           <IonTitle>Weather</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent fullscreen className="weather-page">
+      <IonContent fullscreen className="sanctuary-content weather-page">
         <IonRefresher
           slot="fixed"
           onIonRefresh={async (e) => {
@@ -328,8 +327,10 @@ const Weather: React.FC = () => {
         </IonSegment>
 
         {forecastLoading && (
-          <div className="weather-center">
-            <IonSpinner name="crescent" />
+          <div className="weather-skeleton px-4" aria-hidden>
+            <div className="mb-3 h-36 animate-pulse rounded-card border border-[var(--hajj-border-soft)] bg-[var(--ion-card-background)]" />
+            <div className="mb-3 h-14 animate-pulse rounded-card border border-[var(--hajj-border-soft)] bg-[var(--ion-card-background)]" />
+            <div className="h-48 animate-pulse rounded-card border border-[var(--hajj-border-soft)] bg-[var(--ion-card-background)]" />
           </div>
         )}
 
@@ -477,8 +478,8 @@ const Weather: React.FC = () => {
         </IonCard>
 
         {histLoading && (
-          <div className="weather-center">
-            <IonSpinner name="crescent" />
+          <div className="weather-skeleton px-4" aria-hidden>
+            <div className="h-44 animate-pulse rounded-card border border-[var(--hajj-border-soft)] bg-[var(--ion-card-background)]" />
           </div>
         )}
 

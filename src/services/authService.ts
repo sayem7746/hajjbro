@@ -10,7 +10,7 @@ const REFRESH_TOKEN_BYTES = 32;
 
 function parseExpiryToSeconds(expiry: string): number {
   const match = expiry.match(/^(\d+)([smhd])$/);
-  if (!match) return 7 * 24 * 60 * 60; // default 7d in seconds
+  if (!match) return 90 * 24 * 60 * 60; // default 90d in seconds (must match JWT_REFRESH_EXPIRES_IN)
   const n = parseInt(match[1], 10);
   const unit = match[2];
   const multipliers: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };

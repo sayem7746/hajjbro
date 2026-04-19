@@ -1,208 +1,204 @@
-import React from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonIcon,
-  IonGrid,
-  IonRow,
-  IonCol,
-  IonButton,
-  useIonRouter,
-} from '@ionic/react';
-import {
-  listOutline,
-  checkboxOutline,
-  mapOutline,
-  timeOutline,
-  statsChartOutline,
-  bookOutline,
-  partlySunnyOutline,
-  libraryOutline,
-} from 'ionicons/icons';
+import React, { useMemo } from 'react';
+import { IonPage, IonContent } from '@ionic/react';
+import { useIonRouter } from '@ionic/react';
+import { motion } from 'framer-motion';
+import { ChevronRight, ClipboardList, BookOpen, Star } from 'lucide-react';
+
+import AppHeader from '../components/AppHeader';
+import CircularProgressRing from '../components/CircularProgressRing';
+import HomeMapPreview from '../components/HomeMapPreview';
+import { useAuth } from '../contexts/AuthContext';
 import { useProgress } from '../contexts/ProgressContext';
 import { rituals } from '../data/rituals';
 import { defaultChecklist } from '../data/checklist';
-import logo from '../assets/logo-icon.svg';
-import './Home.css';
+import { dailyWisdom } from '../data/dailyWisdom';
+import { homeVerseArabic } from '../data/homeVerse';
+import { getCurrentRitual } from '../lib/currentRitual';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+};
 
 const Home: React.FC = () => {
   const router = useIonRouter();
-  const { completedRitualCount, totalChecklistComplete } = useProgress();
+  const { user } = useAuth();
+  const { completedRitualCount, isRitualComplete, totalChecklistComplete } = useProgress();
 
-  const ritualPercent = Math.round((completedRitualCount / rituals.length) * 100);
-  const checklistPercent = Math.round(
-    (totalChecklistComplete / defaultChecklist.length) * 100
+  const firstName = useMemo(() => {
+    const n = user?.name?.trim();
+    if (!n) return 'Guest';
+    return n.split(/\s+/)[0] ?? 'Guest';
+  }, [user?.name]);
+
+  const currentRitual = useMemo(
+    () => getCurrentRitual(rituals, isRitualComplete),
+    [isRitualComplete]
   );
 
-  const quickLinks = [
-    { title: 'Hajj Guide', icon: libraryOutline, path: '/app/guide', color: '#2E7D32' },
-    { title: 'Rituals', icon: bookOutline, path: '/app/rituals', color: '#1B5E20' },
-    { title: 'Progress', icon: statsChartOutline, path: '/app/progress', color: '#00695C' },
-    { title: 'Checklist', icon: checkboxOutline, path: '/app/checklist', color: '#C8A951' },
-    { title: 'Map', icon: mapOutline, path: '/app/map', color: '#5D4037' },
-    { title: 'Prayer Times', icon: timeOutline, path: '/app/prayers', color: '#1565C0' },
-    { title: 'Weather', icon: partlySunnyOutline, path: '/app/weather', color: '#0277BD' },
-    { title: 'All Rituals', icon: listOutline, path: '/app/rituals', color: '#6A1B9A' },
-  ];
+  const journeyPercent = Math.round((completedRitualCount / rituals.length) * 100);
+  const checklistRemaining = Math.max(0, defaultChecklist.length - totalChecklistComplete);
 
   return (
-    <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>HajjBro</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen className="home-content">
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">HajjBro</IonTitle>
-          </IonToolbar>
-        </IonHeader>
+    <IonPage className="hajj-home-page">
+      <AppHeader title="HajjBro" />
+      <IonContent fullscreen className="sanctuary-content hajj-home-content">
+        <div className="box-border w-full max-w-full overflow-x-hidden px-5 pb-28 font-sans text-stitch-on-surface">
+          <motion.section className="pt-2" {...fadeUp} transition={{ duration: 0.35 }}>
+            <p className="text-[0.8rem] font-medium text-stitch-on-variant">Peace and Blessings</p>
+            <h1 className="mt-2 text-[1.4rem] font-bold leading-snug tracking-tight text-stitch-primary-mid">
+              Assalamu Alaikum, {firstName}
+            </h1>
+          </motion.section>
 
-        <div className="home-hero">
-          <img src={logo} alt="HajjBro" className="home-logo" />
-          <p className="hero-bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
-          <h2 className="hero-title">Your Hajj Journey</h2>
-          <p className="hero-subtitle">May Allah accept your Hajj and grant you Hajj Mabrur</p>
-        </div>
+          <motion.div
+            className="relative mt-5 flex items-center gap-3 rounded-2xl bg-stitch-surface-low px-4 py-4 shadow-ambient"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32 }}
+          >
+            <p className="min-w-0 flex-1 text-center font-arabic text-[0.95rem] leading-[1.85] text-stitch-on-surface">
+              {homeVerseArabic}
+            </p>
+            <Star className="h-6 w-6 shrink-0 fill-stitch-gold text-stitch-gold" strokeWidth={1.25} aria-hidden />
+          </motion.div>
 
-        <IonGrid className="stats-grid">
-          <IonRow>
-            <IonCol size="6">
-              <IonCard className="stat-card-home" button onClick={() => router.push('/app/progress')}>
-                <div className="stat-ring">
-                  <svg viewBox="0 0 36 36" className="circular-chart">
-                    <path
-                      className="circle-bg"
-                      d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      className="circle-progress green"
-                      strokeDasharray={`${ritualPercent}, 100`}
-                      d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <text x="18" y="20.35" className="percentage">{ritualPercent}%</text>
-                  </svg>
-                </div>
-                <IonCardContent>
-                  <div className="stat-label-home">Rituals Complete</div>
-                  <div className="stat-detail">{completedRitualCount} / {rituals.length}</div>
-                </IonCardContent>
-              </IonCard>
-            </IonCol>
-            <IonCol size="6">
-              <IonCard className="stat-card-home" button onClick={() => router.push('/app/checklist')}>
-                <div className="stat-ring">
-                  <svg viewBox="0 0 36 36" className="circular-chart">
-                    <path
-                      className="circle-bg"
-                      d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      className="circle-progress gold"
-                      strokeDasharray={`${checklistPercent}, 100`}
-                      d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <text x="18" y="20.35" className="percentage">{checklistPercent}%</text>
-                  </svg>
-                </div>
-                <IonCardContent>
-                  <div className="stat-label-home">Checklist Done</div>
-                  <div className="stat-detail">{totalChecklistComplete} / {defaultChecklist.length}</div>
-                </IonCardContent>
-              </IonCard>
-            </IonCol>
-          </IonRow>
-        </IonGrid>
-
-        <div className="section-header">Hajj guide</div>
-        <IonCard className="guide-preview-card" button onClick={() => router.push('/app/guide')}>
-          <IonCardContent>
-            <div className="weather-preview-row">
-              <div className="weather-preview-icon guide-preview-icon">
-                <IonIcon icon={libraryOutline} />
-              </div>
-              <div>
-                <div className="weather-preview-title">Book Hajj 24</div>
-                <p className="weather-preview-text">
-                  Summarized reference: method, adab, ‘Arafāt, ṭawāf, Minā, women’s notes, and more—linked to rituals here.
-                </p>
-              </div>
-            </div>
-          </IonCardContent>
-        </IonCard>
-
-        <div className="section-header">Weather & climate</div>
-        <IonCard className="weather-preview-card" button onClick={() => router.push('/app/weather')}>
-          <IonCardContent>
-            <div className="weather-preview-row">
-              <div className="weather-preview-icon">
-                <IonIcon icon={partlySunnyOutline} />
-              </div>
-              <div>
-                <div className="weather-preview-title">Makkah & Madinah</div>
-                <p className="weather-preview-text">
-                  7-day forecast and Hajj-season temperature history (early July averages).
-                </p>
-              </div>
-            </div>
-          </IonCardContent>
-        </IonCard>
-
-        <div className="section-header">Quick Access</div>
-        <IonGrid>
-          <IonRow>
-            {quickLinks.map((link) => (
-              <IonCol size="4" key={link.title}>
-                <div className="quick-link" onClick={() => router.push(link.path)}>
-                  <div className="quick-link-icon" style={{ background: link.color }}>
-                    <IonIcon icon={link.icon} />
-                  </div>
-                  <span className="quick-link-label">{link.title}</span>
-                </div>
-              </IonCol>
-            ))}
-          </IonRow>
-        </IonGrid>
-
-        <div className="section-header">Current Ritual</div>
-        {rituals
-          .filter((r) => r.order === 1)
-          .map((ritual) => (
-            <IonCard
-              key={ritual.id}
-              className="current-ritual-card"
-              button
-              onClick={() => router.push(`/app/rituals/${ritual.id}`)}
+          <motion.div
+            className="relative mt-6 overflow-hidden rounded-stitch bg-stitch-white px-4 pb-6 pt-5 shadow-ambient"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.34, delay: 0.04 }}
+          >
+            <div
+              className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-teal-300/15"
+              aria-hidden
+            />
+            <button
+              type="button"
+              className="relative z-[1] w-full text-center"
+              onClick={() => router.push(`/app/rituals/${currentRitual.id}`)}
             >
-              <IonCardHeader>
-                <div className="ritual-card-top">
-                  <div className="ritual-icon-circle">
-                    <IonIcon icon={bookOutline} />
-                  </div>
-                  <div>
-                    <IonCardTitle>{ritual.title}</IonCardTitle>
-                    <p className="ritual-arabic-small">{ritual.titleArabic}</p>
-                  </div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stitch-on-variant">
+                Current ritual
+              </p>
+              <div className="mx-auto mt-5 flex h-[148px] w-[148px] items-center justify-center">
+                <div className="relative h-[148px] w-[148px]">
+                  <CircularProgressRing
+                    percent={journeyPercent}
+                    size={148}
+                    stroke={6}
+                    trackClass="text-[#e9e8e6]"
+                    progressClass="text-stitch-primary-mid"
+                  />
+                  <span className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-[1.75rem] font-bold leading-none tracking-tight text-stitch-on-surface">
+                      {completedRitualCount}/{rituals.length}
+                    </span>
+                    <span className="mt-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stitch-on-variant">
+                      Rituals
+                    </span>
+                  </span>
                 </div>
-              </IonCardHeader>
-              <IonCardContent>
-                <p>{ritual.summary}</p>
-                <IonButton fill="clear" size="small" className="view-details-btn">
-                  View Details
-                </IonButton>
-              </IonCardContent>
-            </IonCard>
-          ))}
+              </div>
+              <h2 className="mt-5 text-lg font-bold text-stitch-primary-mid">{currentRitual.title}</h2>
+              <p className="mx-auto mt-2 max-w-[300px] text-center text-sm leading-relaxed text-stitch-on-variant">
+                {currentRitual.summary}
+              </p>
+            </button>
+          </motion.div>
 
-        <div style={{ height: 24 }} />
+          <motion.div
+            className="mt-5 flex flex-col gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, delay: 0.08 }}
+          >
+            <button
+              type="button"
+              className="flex min-h-[48px] w-full items-center gap-4 rounded-2xl bg-stitch-surface-low px-4 py-3.5 text-left shadow-ambient transition active:opacity-90"
+              onClick={() => router.push('/app/checklist')}
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-stitch-primary to-stitch-primary-mid text-white shadow-sm">
+                <ClipboardList className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold text-stitch-on-surface">Checklist</span>
+                <span className="mt-0.5 block text-sm text-stitch-on-variant">
+                  {checklistRemaining === 0
+                    ? 'All checklist items complete'
+                    : `${checklistRemaining} items remaining for Hajj`}
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-stitch-on-variant/60" strokeWidth={2} aria-hidden />
+            </button>
+
+            <button
+              type="button"
+              className="flex min-h-[48px] w-full items-center gap-4 rounded-2xl bg-stitch-surface-low px-4 py-3.5 text-left shadow-ambient transition active:opacity-90"
+              onClick={() => router.push(`/app/rituals/${currentRitual.id}`)}
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-stitch-gold text-stitch-on-surface shadow-sm">
+                <BookOpen className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base font-bold text-stitch-on-surface">Dua &amp; Prayers</span>
+                <span className="mt-0.5 block text-sm text-stitch-on-variant">
+                  Specific duas for {currentRitual.title}
+                </span>
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-stitch-on-variant/60" strokeWidth={2} aria-hidden />
+            </button>
+          </motion.div>
+
+          <motion.div
+            className="mt-8"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, delay: 0.1 }}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-base font-bold text-stitch-on-surface">Live Sacred Map</h3>
+              <button
+                type="button"
+                className="flex items-center gap-0.5 text-sm font-semibold text-stitch-gold"
+                onClick={() => router.push('/app/map')}
+              >
+                Full Map
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              </button>
+            </div>
+            <button type="button" className="w-full text-left" onClick={() => router.push('/app/map')}>
+              <HomeMapPreview />
+            </button>
+          </motion.div>
+
+          <motion.section
+            className="relative mt-8 overflow-hidden rounded-stitch bg-gradient-to-br from-stitch-primary to-stitch-primary-mid px-5 py-6 text-center text-white shadow-float"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, delay: 0.12 }}
+          >
+            <svg
+              className="pointer-events-none absolute bottom-0 right-0 h-28 w-36 text-white/10"
+              viewBox="0 0 120 100"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path d="M60 8 L95 28 L95 88 L25 88 L25 28 Z M45 88 L45 48 L75 48 L75 88" opacity={0.9} />
+              <circle cx="60" cy="22" r="8" />
+            </svg>
+            <p className="relative text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white/75">
+              Daily wisdom
+            </p>
+            <p className="relative mt-3 font-arabic text-[1.05rem] leading-[1.85] text-white/95">
+              {dailyWisdom.arabic}
+            </p>
+            <p className="relative mt-4 text-sm italic leading-relaxed text-white/90">{dailyWisdom.translation}</p>
+            <p className="relative mt-2 text-xs font-medium text-white/70">{dailyWisdom.reference}</p>
+          </motion.section>
+
+          <div className="h-6" />
+        </div>
       </IonContent>
     </IonPage>
   );

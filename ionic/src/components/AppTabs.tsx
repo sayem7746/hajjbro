@@ -1,22 +1,9 @@
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
-import {
-  IonTabs,
-  IonRouterOutlet,
-  IonTabBar,
-  IonTabButton,
-  IonIcon,
-  IonLabel,
-} from '@ionic/react';
-import {
-  homeOutline,
-  bookOutline,
-  checkboxOutline,
-  mapOutline,
-  timeOutline,
-} from 'ionicons/icons';
+import { IonTabs, IonRouterOutlet, IonTabBar, IonTabButton, IonLabel } from '@ionic/react';
+import { Home, BookOpen, CheckSquare, MapPinned, Clock } from 'lucide-react';
 
-import Home from '../pages/Home';
+import HomePage from '../pages/Home';
 import RitualList from '../pages/RitualList';
 import RitualDetail from '../pages/RitualDetail';
 import Progress from '../pages/Progress';
@@ -27,11 +14,13 @@ import Weather from '../pages/Weather';
 import BookHajj24 from '../pages/BookHajj24';
 import BookHajj24Pdf from '../pages/BookHajj24Pdf';
 
+const tabIconClass = 'tab-icon';
+
 const AppTabs: React.FC = () => {
   return (
     <IonTabs>
       <IonRouterOutlet>
-        <Route exact path="/app/home" component={Home} />
+        <Route exact path="/app/home" component={HomePage} />
         <Route exact path="/app/rituals" component={RitualList} />
         <Route exact path="/app/rituals/:id" component={RitualDetail} />
         <Route exact path="/app/progress" component={Progress} />
@@ -46,25 +35,25 @@ const AppTabs: React.FC = () => {
         </Route>
       </IonRouterOutlet>
 
-      <IonTabBar slot="bottom">
-        <IonTabButton tab="home" href="/app/home">
-          <IonIcon icon={homeOutline} />
+      <IonTabBar slot="bottom" className="hajj-tab-bar">
+        <IonTabButton tab="home" href="/app/home" className="hajj-tab-btn">
+          <Home className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Home</IonLabel>
         </IonTabButton>
-        <IonTabButton tab="rituals" href="/app/rituals">
-          <IonIcon icon={bookOutline} />
+        <IonTabButton tab="rituals" href="/app/rituals" className="hajj-tab-btn">
+          <BookOpen className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Rituals</IonLabel>
         </IonTabButton>
-        <IonTabButton tab="checklist" href="/app/checklist">
-          <IonIcon icon={checkboxOutline} />
+        <IonTabButton tab="checklist" href="/app/checklist" className="hajj-tab-btn">
+          <CheckSquare className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Checklist</IonLabel>
         </IonTabButton>
-        <IonTabButton tab="map" href="/app/map">
-          <IonIcon icon={mapOutline} />
+        <IonTabButton tab="map" href="/app/map" className="hajj-tab-btn">
+          <MapPinned className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Map</IonLabel>
         </IonTabButton>
-        <IonTabButton tab="prayers" href="/app/prayers">
-          <IonIcon icon={timeOutline} />
+        <IonTabButton tab="prayers" href="/app/prayers" className="hajj-tab-btn">
+          <Clock className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Prayers</IonLabel>
         </IonTabButton>
       </IonTabBar>

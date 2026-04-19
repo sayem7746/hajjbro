@@ -60,15 +60,15 @@ const BookHajj24: React.FC = () => {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
+      <IonHeader className="ion-no-border">
+        <IonToolbar className="hajj-glass-toolbar">
           <IonButtons slot="start">
             <IonBackButton defaultHref="/app/home" text="Home" />
           </IonButtons>
-          <IonTitle>{bookHajj24Meta.title}</IonTitle>
+          <IonTitle className="text-stitch-on-surface">{bookHajj24Meta.title}</IonTitle>
         </IonToolbar>
       </IonHeader>
-      <IonContent fullscreen className="book-hajj24-content">
+      <IonContent fullscreen className="sanctuary-content book-hajj24-content">
         <IonCard className="book-hajj24-intro">
           <IonCardHeader>
             <IonCardTitle>{bookHajj24Meta.subtitle}</IonCardTitle>

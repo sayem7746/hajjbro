@@ -19,15 +19,15 @@ import '@ionic/react/css/text-alignment.css';
 import '@ionic/react/css/text-transformation.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
-import '@ionic/react/css/palettes/dark.system.css';
 
 import './theme/variables.css';
+import './theme/stitch.css';
 import './theme/global.css';
 
 setupIonicReact();
 
 const App: React.FC = () => (
-  <IonApp>
+  <IonApp className="hajj-sanctuary-app">
     <AuthProvider>
       <ProgressProvider>
         <IonReactRouter>

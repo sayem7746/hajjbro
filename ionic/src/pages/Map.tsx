@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonList,
   IonItem,
@@ -15,6 +12,7 @@ import {
 import { locationOutline, navigateOutline } from 'ionicons/icons';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import AppHeader from '../components/AppHeader';
 import { useOfflineLocations } from '../hooks/useOfflineData';
 import { HajjLocation } from '../types';
 import 'leaflet/dist/leaflet.css';
@@ -45,12 +43,8 @@ const MapPage: React.FC = () => {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>Hajj Locations</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
+      <AppHeader title="Sacred map" />
+      <IonContent fullscreen className="sanctuary-content">
         <IonSegment
           value={view}
           onIonChange={(e) => setView(e.detail.value as 'map' | 'list')}

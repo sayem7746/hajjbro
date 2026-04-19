@@ -1,9 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonCard,
   IonCardContent,
@@ -18,6 +15,7 @@ import {
   IonSegmentButton,
   IonButton,
 } from '@ionic/react';
+import { motion } from 'framer-motion';
 import {
   sunnyOutline,
   partlySunnyOutline,
@@ -30,6 +28,7 @@ import {
 import { prayerTimesApi } from '../services/api';
 import { notificationService } from '../services/notifications';
 import { PrayerTime } from '../types';
+import AppHeader from '../components/AppHeader';
 import './PrayerTimes.css';
 
 const MAKKAH_COORDS = { lat: 21.4225, lng: 39.8262 };
@@ -52,6 +51,26 @@ const prayerArabic: Record<string, string> = {
   Maghrib: 'المغرب',
   Isha: 'العشاء',
 };
+
+function PrayerTimesSkeleton() {
+  return (
+    <div className="prayer-skeleton-wrap px-4" aria-hidden>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <div
+          key={i}
+          className="mb-3 flex min-h-[72px] animate-pulse items-center gap-4 rounded-card border border-border-soft bg-surface px-4 py-3"
+        >
+          <div className="h-12 w-12 shrink-0 rounded-card bg-canvas" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-4 w-24 rounded bg-canvas" />
+            <div className="h-3 w-16 rounded bg-canvas" />
+          </div>
+          <div className="h-6 w-14 rounded bg-canvas" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const PrayerTimesPage: React.FC = () => {
   const [prayers, setPrayers] = useState<PrayerTime[]>([]);
@@ -137,23 +156,18 @@ const PrayerTimesPage: React.FC = () => {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>Prayer Times</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
+      <AppHeader title="Prayer times" />
+      <IonContent fullscreen className="sanctuary-content">
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent />
         </IonRefresher>
 
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">Prayer Times</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-
-        <div className="prayer-location-bar">
+        <motion.div
+          className="prayer-location-bar px-4 pt-3"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28 }}
+        >
           <IonSegment
             value={city}
             onIonChange={(e) => setCity(e.detail.value as 'makkah' | 'madinah')}
@@ -165,7 +179,7 @@ const PrayerTimesPage: React.FC = () => {
               <IonLabel>Madinah</IonLabel>
             </IonSegmentButton>
           </IonSegment>
-        </div>
+        </motion.div>
 
         {dateStr && (
           <div className="prayer-date">
@@ -180,10 +194,7 @@ const PrayerTimesPage: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="prayer-loading">
-            <IonSpinner name="crescent" color="primary" />
-            <p>Fetching prayer times...</p>
-          </div>
+          <PrayerTimesSkeleton />
         ) : (
           <>
             <IonList lines="none" className="prayer-list">
@@ -213,10 +224,10 @@ const PrayerTimesPage: React.FC = () => {
             </IonList>
 
             {!notificationsEnabled && (
-              <div className="notif-prompt">
-                <IonButton expand="block" fill="outline" onClick={enableNotifications}>
+              <div className="notif-prompt px-4">
+                <IonButton expand="block" fill="outline" className="min-h-touch" onClick={enableNotifications}>
                   <IonIcon icon={notificationsOutline} slot="start" />
-                  Enable Prayer Reminders
+                  Enable prayer reminders
                 </IonButton>
               </div>
             )}

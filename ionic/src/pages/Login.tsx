@@ -9,6 +9,7 @@ import {
   IonIcon,
   useIonRouter,
 } from '@ionic/react';
+import { motion } from 'framer-motion';
 import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/logo-icon.svg';
@@ -49,16 +50,27 @@ const Login: React.FC = () => {
     <IonPage>
       <IonContent className="auth-content" fullscreen>
         <div className="auth-container">
-          <div className="auth-header">
+          <motion.div
+            className="auth-header"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
             <div className="auth-logo">
-              <img src={logo} alt="HajjBro" className="logo-image" />
+              <img src={logo} alt="" className="logo-image" />
             </div>
             <h1 className="auth-title">HajjBro</h1>
             <p className="auth-subtitle">Your Hajj Companion</p>
             <p className="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
-          </div>
+          </motion.div>
 
-          <form onSubmit={handleLogin} className="auth-form">
+          <motion.form
+            onSubmit={handleLogin}
+            className="auth-form"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.06 }}
+          >
             {error && (
               <div className="auth-error">
                 <IonText color="danger">{error}</IonText>
@@ -122,7 +134,7 @@ const Login: React.FC = () => {
                 </span>
               </IonText>
             </div>
-          </form>
+          </motion.form>
         </div>
       </IonContent>
     </IonPage>

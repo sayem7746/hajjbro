@@ -4,6 +4,29 @@
   padding: 28px 24px 8px;
 }
 
+.circular-chart .circle-bg {
+  fill: none;
+  stroke: var(--hajj-border-soft, #e5e7eb);
+  stroke-width: 3.8;
+}
+
+.circular-chart .circle-progress {
+  fill: none;
+  stroke-width: 3.8;
+  stroke-linecap: round;
+}
+
+.circular-chart .circle-progress.green {
+  stroke: var(--ion-color-primary);
+}
+
+.circular-chart .percentage {
+  fill: var(--ion-text-color);
+  font-size: 0.4em;
+  text-anchor: middle;
+  font-weight: 700;
+}
+
 .progress-main-ring {
   display: flex;
   justify-content: center;
@@ -106,6 +129,25 @@
 }
 
 .reset-btn {
-  --border-radius: 12px;
+  --border-radius: 8px;
   font-weight: 600;
+}
+
+.modal-calm-body {
+  padding: 24px 20px 32px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.modal-calm-text {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--ion-text-color);
+  margin: 0;
+}
+
+.hajj-reset-modal {
+  --border-radius: 16px;
+  --width: min(100%, 400px);
+  --height: auto;
 }

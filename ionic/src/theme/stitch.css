@@ -1,0 +1,41 @@
+/**
+ * HajjBro — tokens from Stitch project "HajjBro UI/UX Redesign"
+ * (Digital Sanctuary / "The Reverent Path" design system)
+ */
+:root {
+  --stitch-bg: #faf9f7;
+  --stitch-surface: #faf9f7;
+  --stitch-surface-low: #f4f3f1;
+  --stitch-surface-high: #e9e8e6;
+  --stitch-surface-white: #ffffff;
+  --stitch-on-surface: #1a1c1b;
+  --stitch-on-variant: #404847;
+  --stitch-primary: #13423d;
+  --stitch-primary-container: #2d5a54;
+  --stitch-tertiary-gold: #cca830;
+  --stitch-tertiary-deep: #735c00;
+  --stitch-outline-variant: #c0c8c6;
+
+  /* Ambient elevation (design md: primary-tinted shadow) */
+  --stitch-shadow-ambient: 0 8px 32px rgba(19, 66, 61, 0.06);
+  --stitch-shadow-card: 0 4px 24px rgba(19, 66, 61, 0.07);
+
+  /* Sync Ionic page background to Stitch canvas */
+  --ion-background-color: var(--stitch-bg);
+  --hajj-canvas: var(--stitch-bg);
+}
+
+ion-content.sanctuary-content {
+  --background: var(--stitch-bg);
+}
+
+/* Primary CTA — 135° gradient (Stitch design system) */
+ion-button.hajj-gradient-btn {
+  --background: linear-gradient(135deg, var(--stitch-primary) 0%, var(--stitch-primary-container) 100%);
+  --background-activated: linear-gradient(135deg, #0f3632 0%, #234a45 100%);
+  --background-focused: linear-gradient(135deg, var(--stitch-primary) 0%, var(--stitch-primary-container) 100%);
+  --color: #ffffff;
+  --border-radius: 12px;
+  font-weight: 600;
+  min-height: 48px;
+}

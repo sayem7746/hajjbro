@@ -9,6 +9,7 @@ import {
   IonIcon,
   useIonRouter,
 } from '@ionic/react';
+import { motion } from 'framer-motion';
 import { eyeOutline, eyeOffOutline } from 'ionicons/icons';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/logo-icon.svg';
@@ -51,19 +52,34 @@ const Register: React.FC = () => {
     }
   };
 
+  const handleSkip = () => {
+    router.push('/app/home', 'root', 'replace');
+  };
+
   return (
     <IonPage>
       <IonContent className="auth-content" fullscreen>
         <div className="auth-container">
-          <div className="auth-header">
+          <motion.div
+            className="auth-header"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+          >
             <div className="auth-logo">
-              <img src={logo} alt="HajjBro" className="logo-image" />
+              <img src={logo} alt="" className="logo-image" />
             </div>
             <h1 className="auth-title">Create Account</h1>
             <p className="auth-subtitle">Join your Hajj journey</p>
-          </div>
+          </motion.div>
 
-          <form onSubmit={handleRegister} className="auth-form">
+          <motion.form
+            onSubmit={handleRegister}
+            className="auth-form"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.06 }}
+          >
             {error && (
               <div className="auth-error">
                 <IonText color="danger">{error}</IonText>
@@ -134,6 +150,16 @@ const Register: React.FC = () => {
               {loading ? <IonSpinner name="crescent" /> : 'Create Account'}
             </IonButton>
 
+            <IonButton
+              expand="block"
+              fill="outline"
+              type="button"
+              className="auth-button-secondary"
+              onClick={handleSkip}
+            >
+              Continue as Guest
+            </IonButton>
+
             <div className="auth-footer">
               <IonText>
                 Already have an account?{' '}
@@ -142,7 +168,7 @@ const Register: React.FC = () => {
                 </span>
               </IonText>
             </div>
-          </form>
+          </motion.form>
         </div>
       </IonContent>
     </IonPage>

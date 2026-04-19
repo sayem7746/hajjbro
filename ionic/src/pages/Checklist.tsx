@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react';
 import {
   IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonList,
   IonItem,
@@ -14,6 +11,7 @@ import {
   IonCard,
   IonCardContent,
 } from '@ionic/react';
+import AppHeader from '../components/AppHeader';
 import { useOfflineChecklist } from '../hooks/useOfflineData';
 import { useProgress } from '../contexts/ProgressContext';
 import { categoryLabels, categoryIcons } from '../data/checklist';
@@ -38,18 +36,8 @@ const Checklist: React.FC = () => {
 
   return (
     <IonPage>
-      <IonHeader>
-        <IonToolbar>
-          <IonTitle>Checklist</IonTitle>
-        </IonToolbar>
-      </IonHeader>
-      <IonContent fullscreen>
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">Checklist</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-
+      <AppHeader title="Checklist" />
+      <IonContent fullscreen className="sanctuary-content">
         <div className="checklist-summary">
           <div className="checklist-progress-info">
             <span className="checklist-count">
