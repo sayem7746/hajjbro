@@ -10,6 +10,7 @@ import prayerTimesRoutes from './prayerTimesRoutes.js';
 import notificationScheduleRoutes from './notificationScheduleRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import weatherRoutes from './weatherRoutes.js';
+import kafelaRoutes from './kafelaRoutes.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/prayer-times', prayerTimesRoutes);
 router.use('/notifications', notificationScheduleRoutes);
 router.use('/admin', adminRoutes);
 router.use('/weather', weatherRoutes);
+router.use('/kafelas', kafelaRoutes);
 
 export default router;

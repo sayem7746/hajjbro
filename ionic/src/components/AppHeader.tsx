@@ -40,15 +40,15 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             <IonBackButton
               defaultHref={defaultHref}
               text={backText}
-              className="min-h-touch min-w-touch text-ink"
+              className="min-h-touch min-w-touch text-stitch-primary"
             />
           ) : (
             <div className="min-h-touch min-w-touch shrink-0" aria-hidden />
           )}
         </IonButtons>
         <IonTitle
-          className={`font-sans tracking-tight text-stitch-on-surface ${
-            title === 'HajjBro' ? 'text-[1.05rem] font-bold' : 'text-[0.95rem] font-semibold'
+          className={`font-sans tracking-tight text-stitch-primary ${
+            title === 'HajjBro' ? 'text-lg font-bold' : 'text-[0.95rem] font-semibold'
           }`}
         >
           {title}

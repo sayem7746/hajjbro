@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Manrope:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Manrope:wght@400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
 
 /* Lock app shell to Stitch / Digital Sanctuary light canvas */
 ion-app.hajj-sanctuary-app {
@@ -13,54 +13,52 @@ ion-content {
   --background: var(--ion-background-color);
 }
 
-/* Glass top bar */
+/* Glass top bar — Stitch header: warm canvas at 80% with ambient shadow, no divider line */
 .hajj-glass-toolbar {
-  --background: rgba(255, 255, 255, 0.82);
-  --color: var(--ion-text-color);
+  --background: rgba(250, 249, 247, 0.8);
+  --color: #13423d;
   --border-width: 0;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(229, 231, 235, 0.65) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(19, 66, 61, 0.06);
+  border-bottom: none !important;
 }
 
-/* Floating bottom navigation */
+/* Full-width glass tab bar with a gradient pill on the active destination */
 ion-tab-bar.hajj-tab-bar {
-  --background: rgba(255, 255, 255, 0.92);
+  --background: rgba(250, 249, 247, 0.8);
   --border: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: 32px;
-  margin-left: 12px;
-  margin-right: 12px;
-  margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  min-height: calc(56px + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 4px 24px rgba(26, 26, 26, 0.08);
-  border: 1px solid rgba(229, 231, 235, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 32px 32px 0 0;
+  margin: 0;
+  padding-top: 6px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  min-height: calc(72px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(19, 66, 61, 0.08);
+  border: none;
 }
 
 ion-tab-bar.hajj-tab-bar ion-tab-button {
-  --color: var(--hajj-tab-inactive);
+  --color: rgba(26, 28, 27, 0.5);
+  --color-selected: #ffffff;
   --background: transparent;
+  --background-focused: transparent;
   font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 ion-tab-bar.hajj-tab-bar ion-tab-button.tab-selected {
   --color: #ffffff;
+  --background: transparent;
 }
 
 ion-tab-bar.hajj-tab-bar ion-tab-button.tab-selected::part(native) {
   background: linear-gradient(135deg, #13423d 0%, #2d5a54 100%);
-  border-radius: 12px;
-  margin: 6px 4px;
-}
-
-/* Fallback where shadow parts differ */
-ion-tab-bar.hajj-tab-bar ion-tab-button.tab-selected {
-  --background: linear-gradient(135deg, #13423d 0%, #2d5a54 100%);
-  border-radius: 12px;
+  border-radius: 16px;
+  margin: 4px 2px;
+  color: #ffffff;
 }
 
 ion-tab-bar.hajj-tab-bar ion-label {
@@ -68,8 +66,8 @@ ion-tab-bar.hajj-tab-bar ion-label {
   font-family: 'Manrope', 'Inter', system-ui, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 0.55rem;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .arabic-text {

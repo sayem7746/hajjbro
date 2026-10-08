@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { IonPage, IonContent } from '@ionic/react';
 import { useIonRouter } from '@ionic/react';
 import { motion } from 'framer-motion';
-import { ChevronRight, ClipboardList, BookOpen, Star } from 'lucide-react';
+import { ChevronRight, ClipboardList, BookOpen, Star, Users } from 'lucide-react';
 
 import AppHeader from '../components/AppHeader';
 import CircularProgressRing from '../components/CircularProgressRing';
@@ -45,8 +45,8 @@ const Home: React.FC = () => {
       <IonContent fullscreen className="sanctuary-content hajj-home-content">
         <div className="box-border w-full max-w-full overflow-x-hidden px-5 pb-28 font-sans text-stitch-on-surface">
           <motion.section className="pt-2" {...fadeUp} transition={{ duration: 0.35 }}>
-            <p className="text-[0.8rem] font-medium text-stitch-on-variant">Peace and Blessings</p>
-            <h1 className="mt-2 text-[1.4rem] font-bold leading-snug tracking-tight text-stitch-primary-mid">
+            <p className="mb-1 text-sm font-medium text-[#466270]">Peace and Blessings</p>
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-stitch-primary">
               Assalamu Alaikum, {firstName}
             </h1>
           </motion.section>
@@ -64,7 +64,7 @@ const Home: React.FC = () => {
           </motion.div>
 
           <motion.div
-            className="relative mt-6 overflow-hidden rounded-stitch bg-stitch-white px-4 pb-6 pt-5 shadow-ambient"
+            className="relative mt-6 overflow-hidden rounded-[32px] bg-white px-6 pb-8 pt-6 shadow-ambient"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.34, delay: 0.04 }}
@@ -115,38 +115,53 @@ const Home: React.FC = () => {
           >
             <button
               type="button"
-              className="flex min-h-[48px] w-full items-center gap-4 rounded-2xl bg-stitch-surface-low px-4 py-3.5 text-left shadow-ambient transition active:opacity-90"
+              className="min-h-[48px] w-full rounded-[24px] bg-stitch-surface-low p-5 text-left transition-colors active:bg-stitch-surface-high"
               onClick={() => router.push('/app/checklist')}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-stitch-primary to-stitch-primary-mid text-white shadow-sm">
-                <ClipboardList className="h-6 w-6" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-base font-bold text-stitch-on-surface">Checklist</span>
-                <span className="mt-0.5 block text-sm text-stitch-on-variant">
-                  {checklistRemaining === 0
-                    ? 'All checklist items complete'
-                    : `${checklistRemaining} items remaining for Hajj`}
+              <span className="mb-4 flex items-center justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-stitch-primary-mid text-white">
+                  <ClipboardList className="h-5 w-5" strokeWidth={2} aria-hidden />
                 </span>
+                <ChevronRight className="h-5 w-5 text-stitch-on-variant/50" aria-hidden />
               </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-stitch-on-variant/60" strokeWidth={2} aria-hidden />
+              <span className="block text-base font-bold text-stitch-on-surface">Checklist</span>
+              <span className="mt-1 block text-xs text-[#466270]">
+                {checklistRemaining === 0
+                  ? 'All checklist items complete'
+                  : `${checklistRemaining} items remaining for Hajj`}
+              </span>
             </button>
 
             <button
               type="button"
-              className="flex min-h-[48px] w-full items-center gap-4 rounded-2xl bg-stitch-surface-low px-4 py-3.5 text-left shadow-ambient transition active:opacity-90"
+              className="min-h-[48px] w-full rounded-[24px] bg-stitch-surface-low p-5 text-left transition-colors active:bg-stitch-surface-high"
               onClick={() => router.push(`/app/rituals/${currentRitual.id}`)}
             >
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-stitch-gold text-stitch-on-surface shadow-sm">
-                <BookOpen className="h-6 w-6" strokeWidth={2} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-base font-bold text-stitch-on-surface">Dua &amp; Prayers</span>
-                <span className="mt-0.5 block text-sm text-stitch-on-variant">
-                  Specific duas for {currentRitual.title}
+              <span className="mb-4 flex items-center justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-stitch-gold text-[#4f3e00]">
+                  <BookOpen className="h-5 w-5" strokeWidth={2} aria-hidden />
                 </span>
+                <ChevronRight className="h-5 w-5 text-stitch-on-variant/50" aria-hidden />
               </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-stitch-on-variant/60" strokeWidth={2} aria-hidden />
+              <span className="block text-base font-bold text-stitch-on-surface">Dua &amp; Prayers</span>
+              <span className="mt-1 block text-xs text-[#466270]">Specific duas for {currentRitual.title}</span>
+            </button>
+
+            <button
+              type="button"
+              className="min-h-[48px] w-full rounded-[24px] bg-stitch-surface-low p-5 text-left transition-colors active:bg-stitch-surface-high"
+              onClick={() => router.push('/app/kafela')}
+            >
+              <span className="mb-4 flex items-center justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-stitch-primary text-white">
+                  <Users className="h-5 w-5" strokeWidth={2} aria-hidden />
+                </span>
+                <ChevronRight className="h-5 w-5 text-stitch-on-variant/50" aria-hidden />
+              </span>
+              <span className="block text-base font-bold text-stitch-on-surface">Kafela</span>
+              <span className="mt-1 block text-xs text-[#466270]">
+                Join your group, live map, broadcasts &amp; SOS
+              </span>
             </button>
           </motion.div>
 
@@ -157,7 +172,7 @@ const Home: React.FC = () => {
             transition={{ duration: 0.32, delay: 0.1 }}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-base font-bold text-stitch-on-surface">Live Sacred Map</h3>
+              <h3 className="text-xl font-bold text-stitch-primary">Live Sacred Map</h3>
               <button
                 type="button"
                 className="flex items-center gap-0.5 text-sm font-semibold text-stitch-gold"
@@ -173,7 +188,7 @@ const Home: React.FC = () => {
           </motion.div>
 
           <motion.section
-            className="relative mt-8 overflow-hidden rounded-stitch bg-gradient-to-br from-stitch-primary to-stitch-primary-mid px-5 py-6 text-center text-white shadow-float"
+            className="relative mt-8 overflow-hidden rounded-[32px] bg-gradient-to-br from-stitch-primary to-stitch-primary-mid px-8 py-8 text-center text-white shadow-float"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.32, delay: 0.12 }}

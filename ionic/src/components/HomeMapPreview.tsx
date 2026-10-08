@@ -3,7 +3,7 @@ import { MapPin } from 'lucide-react';
 
 /** Stitch-style map preview: dark frame, topo-like texture, location pill overlay. */
 const HomeMapPreview: React.FC = () => (
-  <div className="relative h-[200px] w-full overflow-hidden rounded-2xl bg-[#0c0f0d] shadow-inner">
+  <div className="relative h-64 w-full overflow-hidden rounded-[32px] bg-stitch-surface-high shadow-[0_16px_48px_rgba(19,66,61,0.08)]">
     <svg
       className="absolute inset-0 h-full w-full"
       viewBox="0 0 400 200"
@@ -28,11 +28,9 @@ const HomeMapPreview: React.FC = () => (
         fill="rgba(19, 66, 61, 0.25)"
       />
     </svg>
-    <p className="pointer-events-none absolute bottom-10 left-3 right-3 text-center text-[0.55rem] font-semibold uppercase tracking-[0.2em] text-white/35">
-      Makkah region
-    </p>
-    <div className="absolute bottom-3 left-3 right-3 flex justify-center">
-      <div className="flex max-w-[min(100%,340px)] items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
+    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-stitch-primary/40 to-transparent" />
+    <div className="absolute bottom-6 left-4 right-4 flex justify-center">
+      <div className="flex w-full max-w-[340px] items-center gap-4 rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-md">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2d5a54] text-white">
           <MapPin className="h-5 w-5" strokeWidth={2} aria-hidden />
         </span>

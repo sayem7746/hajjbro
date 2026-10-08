@@ -1,21 +1,8 @@
 import React from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
-  IonBackButton,
-  IonButtons,
-  IonFooter,
-  IonButton,
-  IonIcon,
-  IonChip,
-  IonLabel,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonBackButton, IonButtons } from '@ionic/react';
 import { useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { checkmarkCircle, locationOutline } from 'ionicons/icons';
+import { CheckCircle2, Sparkles } from 'lucide-react';
 
 import AppHeader from '../components/AppHeader';
 import DuaBlock from '../components/DuaBlock';
@@ -32,6 +19,7 @@ const RitualDetail: React.FC = () => {
 
   const ritual = rituals.find((r) => r.id === id);
   const backFromGuide = Boolean(location.state?.fromBookHajjSection);
+  const total = rituals.length;
 
   if (!ritual) {
     return (
@@ -56,95 +44,86 @@ const RitualDetail: React.FC = () => {
   return (
     <IonPage>
       <AppHeader
-        title={ritual.title}
+        title="HajjBro"
         showBack
         defaultHref="/app/rituals"
-        backText={backFromGuide ? 'Guide' : undefined}
+        backText={backFromGuide ? 'Guide' : ''}
       />
 
-      <IonContent fullscreen className="sanctuary-content pb-32">
+      <IonContent fullscreen className="sanctuary-content">
         <motion.div
-          className="box-border px-5 pb-8 pt-4 font-sans text-stitch-on-surface"
+          className="box-border px-5 pb-32 pt-6 font-sans text-stitch-on-surface"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.32 }}
         >
-          <div className="rounded-stitch bg-stitch-white px-5 py-6 shadow-ambient">
-            <p className="font-arabic text-right text-[1.35rem] leading-[1.75] text-stitch-primary-mid">{ritual.titleArabic}</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-stitch-on-surface">{ritual.title}</h1>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <IonChip className="!m-0 bg-stitch-surface-low text-xs font-medium text-stitch-on-surface">
-                <IonLabel>{ritual.day}</IonLabel>
-              </IonChip>
-              <IonChip className="!m-0 bg-stitch-surface-low text-xs font-medium text-stitch-on-surface">
-                <IonIcon icon={locationOutline} className="text-stitch-primary-mid" />
-                <IonLabel>{ritual.location}</IonLabel>
-              </IonChip>
+          <section className="mb-10">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="rounded-full bg-[#ffe088] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#241a00]">
+                Ritual {ritual.order} of {total}
+              </span>
             </div>
-          </div>
+            <h2 className="mb-6 text-4xl font-extrabold tracking-tight text-stitch-primary">{ritual.title}</h2>
 
-          <section className="mt-8">
-            <h2 className="text-[0.7rem] font-semibold uppercase tracking-widest text-stitch-on-variant">Overview</h2>
-            <p className="mt-3 text-body leading-relaxed text-stitch-on-surface">{ritual.description}</p>
+            <div className="relative mb-8 h-48 overflow-hidden rounded-3xl shadow-ambient">
+              <div className="absolute inset-0 bg-gradient-to-br from-stitch-primary to-stitch-primary-mid" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
+              <p
+                dir="rtl"
+                className="absolute inset-x-6 bottom-6 font-arabic text-3xl leading-[1.8] text-white"
+              >
+                {ritual.titleArabic}
+              </p>
+            </div>
+
+            <p className="text-lg font-medium italic leading-relaxed text-stitch-on-variant/90">{ritual.description}</p>
           </section>
 
-          <section className="mt-10 rounded-2xl bg-stitch-surface-low px-4 py-5 shadow-ambient">
-            <h2 className="text-[0.7rem] font-semibold uppercase tracking-widest text-stitch-on-variant">Steps</h2>
-            <ol className="mt-4 list-none space-y-0 pl-0">
-              {ritual.steps.map((step, index) => (
-                <li key={index} className="flex gap-4">
+          <section className="mb-12 space-y-2">
+            {ritual.steps.map((step, index) => {
+              const active = completed || index === 0;
+              return (
+                <div key={index} className="flex gap-6">
                   <div className="flex flex-col items-center">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-stitch-primary to-stitch-primary-mid text-sm font-bold text-white shadow-sm">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        active
+                          ? 'bg-stitch-primary text-white shadow-lg'
+                          : 'bg-stitch-surface-high text-stitch-primary'
+                      }`}
+                    >
                       {index + 1}
-                    </span>
+                    </div>
                     {index < ritual.steps.length - 1 && (
-                      <span className="h-10 w-px shrink-0 bg-stitch-primary/20" aria-hidden />
+                      <div className="mt-2 w-0.5 flex-1 bg-stitch-outline/30" />
                     )}
                   </div>
-                  <p
-                    className={`min-w-0 flex-1 pt-2 text-[0.98rem] leading-relaxed text-stitch-on-surface ${
-                      index < ritual.steps.length - 1 ? 'pb-8' : 'pb-0'
-                    }`}
-                  >
-                    {step}
-                  </p>
-                </li>
-              ))}
-            </ol>
+                  <div className={`min-w-0 flex-1 pt-1 ${index < ritual.steps.length - 1 ? 'pb-6' : ''}`}>
+                    <p className="text-base font-medium leading-relaxed text-stitch-on-variant">{step}</p>
+                  </div>
+                </div>
+              );
+            })}
           </section>
 
           {ritual.duas.length > 0 && (
-            <section className="mt-10">
-              <h2 className="text-[0.7rem] font-semibold uppercase tracking-widest text-stitch-on-variant">
-                Duas &amp; supplications
-              </h2>
-              <div className="mt-4 flex flex-col gap-4">
-                {ritual.duas.map((dua) => (
-                  <DuaBlock key={dua.id} dua={dua} />
-                ))}
-              </div>
+            <section className="mb-12 flex flex-col gap-6">
+              {ritual.duas.map((dua) => (
+                <DuaBlock key={dua.id} dua={dua} />
+              ))}
             </section>
           )}
 
-          <div className="h-8" />
-        </motion.div>
-      </IonContent>
-
-      <IonFooter className="ion-no-border safe-area-bottom">
-        <IonToolbar className="border-t border-stitch-outline/25 bg-stitch-white/95 px-4 py-3 backdrop-blur-md [--background:rgba(255,255,255,0.92)]">
-          <IonButton
-            expand="block"
-            size="large"
-            className={`min-h-[48px] font-semibold ${completed ? '' : 'hajj-gradient-btn'}`}
-            color={completed ? 'medium' : undefined}
-            fill={completed ? 'outline' : 'solid'}
+          <button
+            type="button"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-stitch-primary to-stitch-primary-mid py-5 text-lg font-bold text-white shadow-[0_8px_32px_rgba(19,66,61,0.15)] transition-opacity hover:opacity-95"
             onClick={() => toggleRitual(ritual.id)}
           >
-            <IonIcon icon={checkmarkCircle} slot="start" />
-            {completed ? 'Ritual marked complete' : 'Mark ritual complete'}
-          </IonButton>
-        </IonToolbar>
-      </IonFooter>
+            <span>{completed ? 'Ritual marked complete' : 'Mark Ritual as Complete'}</span>
+            {completed ? <CheckCircle2 className="h-6 w-6" /> : <Sparkles className="h-6 w-6" aria-hidden />}
+          </button>
+        </motion.div>
+      </IonContent>
     </IonPage>
   );
 };

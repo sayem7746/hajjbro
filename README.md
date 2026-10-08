@@ -122,6 +122,10 @@ prisma/
 - **Notification** – in-app / push
 - **Contact** – emergency / travel contacts
 - **PrayerTime** – times per location/date
+- **Kafela** – pilgrim convoy with join code (roles on membership, not platform admin)
+- **KafelaMember** / **KafelaGroup** / **MemberLocation** – roster, subgroups, last-known GPS
+- **Broadcast** / **BroadcastAck** – admin messages with optional urgent ack
+- **SosEvent** / **RollCall** / **RollCallResponse** – SOS and headcount
 
 ## Documentation
 

@@ -39,26 +39,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await authApi.login(email, password);
-      const { user, token } = response.data;
+      const payload = response.data?.data ?? response.data;
+      const token = payload.accessToken ?? payload.token;
+      const rawUser = payload.user;
+      if (!token || !rawUser) {
+        throw new Error('Invalid login response from server');
+      }
+      const user: User = {
+        id: rawUser.id,
+        name: rawUser.name || rawUser.email,
+        email: rawUser.email,
+        token,
+      };
       await storageService.set('auth_token', token);
       await storageService.setObject('user', user);
       setState({ user, isAuthenticated: true, isLoading: false });
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      throw new Error(err.response?.data?.message || 'Login failed. Please try again.');
+      const err = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      throw new Error(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Login failed. Please try again.'
+      );
     }
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     try {
       const response = await authApi.register(name, email, password);
-      const { user, token } = response.data;
+      const payload = response.data?.data ?? response.data;
+      const token = payload.accessToken ?? payload.token;
+      const rawUser = payload.user;
+      if (!token || !rawUser) {
+        throw new Error('Invalid registration response from server');
+      }
+      const user: User = {
+        id: rawUser.id,
+        name: rawUser.name || name,
+        email: rawUser.email,
+        token,
+      };
       await storageService.set('auth_token', token);
       await storageService.setObject('user', user);
       setState({ user, isAuthenticated: true, isLoading: false });
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      throw new Error(err.response?.data?.message || 'Registration failed. Please try again.');
+      const err = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      throw new Error(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          'Registration failed. Please try again.'
+      );
     }
   }, []);
 

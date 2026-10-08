@@ -55,3 +55,41 @@ export async function sendPushNotification(
     return false;
   }
 }
+
+/** Send the same push to many FCM tokens (chunks of 500). */
+export async function sendMulticastPush(
+  fcmTokens: string[],
+  title: string,
+  body: string,
+  data?: Record<string, string>
+): Promise<{ successCount: number; failureCount: number }> {
+  const unique = [...new Set(fcmTokens.filter(Boolean))];
+  if (!unique.length) return { successCount: 0, failureCount: 0 };
+
+  const app = await getFirebaseApp();
+  if (!app) return { successCount: 0, failureCount: unique.length };
+
+  try {
+    const { getMessaging } = await import('firebase-admin/messaging');
+    const messaging = getMessaging(app);
+    let successCount = 0;
+    let failureCount = 0;
+    const chunkSize = 500;
+
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      const chunk = unique.slice(i, i + chunkSize);
+      const res = await messaging.sendEachForMulticast({
+        tokens: chunk,
+        notification: { title, body },
+        data: data ?? {},
+      });
+      successCount += res.successCount;
+      failureCount += res.failureCount;
+    }
+
+    return { successCount, failureCount };
+  } catch (e) {
+    logger.warn({ err: e, tokenCount: unique.length }, 'FCM multicast failed');
+    return { successCount: 0, failureCount: unique.length };
+  }
+}

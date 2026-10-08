@@ -32,12 +32,14 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastLoginAt   DateTime? @map("last_login_at")
 
-  refreshTokens         RefreshToken[]
-  checklists            UserChecklist[]
-  ritualProgress        UserRitualProgress[]
-  notifications         Notification[]
+  refreshTokens          RefreshToken[]
+  checklists             UserChecklist[]
+  ritualProgress         UserRitualProgress[]
+  notifications          Notification[]
   scheduledNotifications ScheduledNotification[]
-  contacts              Contact[]
+  contacts               Contact[]
+  kafelasCreated         Kafela[]       @relation("KafelaCreator")
+  kafelaMemberships      KafelaMember[]
 
   @@index([createdAt])
   @@map("users")
@@ -242,6 +244,204 @@ model Contact {
 
   @@index([userId])
   @@map("contacts")
+}
+
+// ─── Kafela (pilgrim convoy / travel group) ───────────────────────────────────
+enum KafelaMemberRole {
+  kafela_admin
+  group_admin
+  member
+}
+
+enum KafelaMemberStatus {
+  active
+  removed
+  left
+}
+
+enum BroadcastPriority {
+  info
+  urgent
+}
+
+model Kafela {
+  id          String    @id @default(cuid())
+  name        String
+  joinCode    String    @unique @map("join_code")
+  maxMembers  Int       @default(150) @map("max_members")
+  startsOn    DateTime? @map("starts_on") @db.Date
+  endsOn      DateTime? @map("ends_on") @db.Date
+  createdById String    @map("created_by_id")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  createdBy  User           @relation("KafelaCreator", fields: [createdById], references: [id])
+  members    KafelaMember[]
+  groups     KafelaGroup[]
+  broadcasts Broadcast[]
+  sosEvents  SosEvent[]
+  rollCalls  RollCall[]
+
+  @@index([joinCode])
+  @@index([isActive])
+  @@map("kafelas")
+}
+
+model KafelaMember {
+  id             String             @id @default(cuid())
+  userId         String             @map("user_id")
+  kafelaId       String             @map("kafela_id")
+  role           KafelaMemberRole   @default(member)
+  groupId        String?            @map("group_id")
+  status         KafelaMemberStatus @default(active)
+  sharingEnabled Boolean            @default(false) @map("sharing_enabled")
+  displayName    String?            @map("display_name")
+  phone          String?
+  tentOrRoom     String?            @map("tent_or_room")
+  joinedAt       DateTime           @default(now()) @map("joined_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kafela             Kafela             @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  group              KafelaGroup?       @relation("GroupMembers", fields: [groupId], references: [id], onDelete: SetNull)
+  adminOfGroup       KafelaGroup?       @relation("GroupAdmin")
+  location           MemberLocation?
+  broadcastsAuthored Broadcast[]        @relation("BroadcastAuthor")
+  broadcastAcks      BroadcastAck[]
+  sosEvents          SosEvent[]         @relation("SosMember")
+  sosResolved        SosEvent[]         @relation("SosResolver")
+  rollCallsAuthored  RollCall[]         @relation("RollCallAuthor")
+  rollCallResponses  RollCallResponse[]
+
+  @@unique([userId, kafelaId])
+  @@index([kafelaId, status])
+  @@index([groupId])
+  @@index([userId, status])
+  @@map("kafela_members")
+}
+
+model KafelaGroup {
+  id            String   @id @default(cuid())
+  kafelaId      String   @map("kafela_id")
+  name          String
+  color         String   @default("#0d9488")
+  adminMemberId String?  @unique @map("admin_member_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  kafela    Kafela         @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  admin     KafelaMember?  @relation("GroupAdmin", fields: [adminMemberId], references: [id], onDelete: SetNull)
+  members   KafelaMember[] @relation("GroupMembers")
+  broadcasts Broadcast[]
+  rollCalls RollCall[]
+
+  @@index([kafelaId])
+  @@map("kafela_groups")
+}
+
+model MemberLocation {
+  id        String   @id @default(cuid())
+  memberId  String   @unique @map("member_id")
+  latitude  Decimal  @db.Decimal(10, 8)
+  longitude Decimal  @db.Decimal(11, 8)
+  accuracy  Float?
+  battery   Int?
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member KafelaMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("member_locations")
+}
+
+model Broadcast {
+  id        String            @id @default(cuid())
+  kafelaId  String            @map("kafela_id")
+  groupId   String?           @map("group_id")
+  authorId  String            @map("author_id")
+  title     String
+  body      String            @db.Text
+  priority  BroadcastPriority @default(info)
+  rallyLat  Decimal?          @map("rally_lat") @db.Decimal(10, 8)
+  rallyLng  Decimal?          @map("rally_lng") @db.Decimal(11, 8)
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  kafela Kafela         @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  group  KafelaGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author KafelaMember   @relation("BroadcastAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  acks   BroadcastAck[]
+
+  @@index([kafelaId, createdAt])
+  @@index([groupId])
+  @@map("broadcasts")
+}
+
+model BroadcastAck {
+  id          String   @id @default(cuid())
+  broadcastId String   @map("broadcast_id")
+  memberId    String   @map("member_id")
+  seenAt      DateTime @default(now()) @map("seen_at")
+
+  broadcast Broadcast    @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  member    KafelaMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, memberId])
+  @@index([memberId])
+  @@map("broadcast_acks")
+}
+
+model SosEvent {
+  id           String    @id @default(cuid())
+  kafelaId     String    @map("kafela_id")
+  memberId     String    @map("member_id")
+  latitude     Decimal?  @db.Decimal(10, 8)
+  longitude    Decimal?  @db.Decimal(11, 8)
+  note         String?   @db.Text
+  resolvedAt   DateTime? @map("resolved_at")
+  resolvedById String?   @map("resolved_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  kafela     Kafela        @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  member     KafelaMember  @relation("SosMember", fields: [memberId], references: [id], onDelete: Cascade)
+  resolvedBy KafelaMember? @relation("SosResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([kafelaId, resolvedAt])
+  @@index([memberId])
+  @@map("sos_events")
+}
+
+model RollCall {
+  id        String   @id @default(cuid())
+  kafelaId  String   @map("kafela_id")
+  groupId   String?  @map("group_id")
+  authorId  String   @map("author_id")
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  closedAt  DateTime? @map("closed_at")
+
+  kafela    Kafela             @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  group     KafelaGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author    KafelaMember       @relation("RollCallAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  responses RollCallResponse[]
+
+  @@index([kafelaId, createdAt])
+  @@map("roll_calls")
+}
+
+model RollCallResponse {
+  id          String   @id @default(cuid())
+  rollCallId  String   @map("roll_call_id")
+  memberId    String   @map("member_id")
+  present     Boolean  @default(true)
+  respondedAt DateTime @default(now()) @map("responded_at")
+
+  rollCall RollCall     @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
+  member   KafelaMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([rollCallId, memberId])
+  @@index([memberId])
+  @@map("roll_call_responses")
 }
 
 // ─── Prayer times (per location/date) ─────────────────────────────────────────

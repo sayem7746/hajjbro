@@ -1,7 +1,7 @@
 import React from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import { IonTabs, IonRouterOutlet, IonTabBar, IonTabButton, IonLabel } from '@ionic/react';
-import { Home, BookOpen, CheckSquare, MapPinned, Clock } from 'lucide-react';
+import { Home, BookOpen, Users, MapPinned, Clock } from 'lucide-react';
 
 import HomePage from '../pages/Home';
 import RitualList from '../pages/RitualList';
@@ -13,6 +13,10 @@ import PrayerTimesPage from '../pages/PrayerTimes';
 import Weather from '../pages/Weather';
 import BookHajj24 from '../pages/BookHajj24';
 import BookHajj24Pdf from '../pages/BookHajj24Pdf';
+import KafelaPage from '../pages/Kafela';
+import KafelaGroupsPage from '../pages/KafelaGroups';
+import KafelaBroadcastPage from '../pages/KafelaBroadcast';
+import KafelaRollCallPage from '../pages/KafelaRollCall';
 
 const tabIconClass = 'tab-icon';
 
@@ -30,6 +34,10 @@ const AppTabs: React.FC = () => {
         <Route exact path="/app/weather" component={Weather} />
         <Route exact path="/app/guide" component={BookHajj24} />
         <Route exact path="/app/guide/pdf" component={BookHajj24Pdf} />
+        <Route exact path="/app/kafela" component={KafelaPage} />
+        <Route exact path="/app/kafela/groups" component={KafelaGroupsPage} />
+        <Route exact path="/app/kafela/broadcast" component={KafelaBroadcastPage} />
+        <Route exact path="/app/kafela/roll-call" component={KafelaRollCallPage} />
         <Route exact path="/app">
           <Redirect to="/app/home" />
         </Route>
@@ -44,9 +52,9 @@ const AppTabs: React.FC = () => {
           <BookOpen className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
           <IonLabel>Rituals</IonLabel>
         </IonTabButton>
-        <IonTabButton tab="checklist" href="/app/checklist" className="hajj-tab-btn">
-          <CheckSquare className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
-          <IonLabel>Checklist</IonLabel>
+        <IonTabButton tab="kafela" href="/app/kafela" className="hajj-tab-btn">
+          <Users className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
+          <IonLabel>Kafela</IonLabel>
         </IonTabButton>
         <IonTabButton tab="map" href="/app/map" className="hajj-tab-btn">
           <MapPinned className={tabIconClass} size={22} strokeWidth={1.75} aria-hidden />
