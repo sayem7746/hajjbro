@@ -41,7 +41,7 @@ const KafelaRollCallPage: React.FC = () => {
   const params = new URLSearchParams(location.search);
   const initialId = params.get('id');
 
-  const { kafela, me, groups, rollCalls, canSendBroadcast, isAdmin, refreshRollCalls } =
+  const { kafela, me, groups, rollCalls, canSendBroadcast, isAdmin, refreshRollCalls, liveRevision } =
     useKafela();
   const [title, setTitle] = useState('Bus headcount');
   const [groupId, setGroupId] = useState('');
@@ -71,6 +71,10 @@ const KafelaRollCallPage: React.FC = () => {
   useEffect(() => {
     if (initialId) void loadStatus(initialId);
   }, [initialId, loadStatus]);
+
+  useEffect(() => {
+    if (activeId) void loadStatus(activeId);
+  }, [liveRevision, activeId, loadStatus]);
 
   const start = async () => {
     if (!kafela) return;

@@ -1,4 +1,5 @@
 import api from './api';
+import { storageService } from './storage';
 import type {
   Broadcast,
   KafelaMember,
@@ -15,8 +16,23 @@ function unwrap<T>(response: { data: { success?: boolean; data: T } }): T {
   return response.data.data;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hajjbro-production.up.railway.app/api/v1';
+
+export type KafelaSnapshot = {
+  kafela: KafelaSummary;
+  me: KafelaMember;
+  members: KafelaMember[];
+  groups: KafelaGroupSummary[];
+  broadcasts: Broadcast[];
+  sosEvents: SosEvent[];
+  rollCalls: RollCall[];
+};
+
 export const kafelaApi = {
   getMine: () => api.get('/kafelas/mine').then((r) => unwrap<MyKafelaResponse | null>(r)),
+
+  getSnapshot: (kafelaId: string) =>
+    api.get(`/kafelas/${kafelaId}/snapshot`).then((r) => unwrap<KafelaSnapshot>(r)),
 
   create: (body: {
     name: string;
@@ -160,4 +176,56 @@ export const kafelaApi = {
     api
       .post(`/kafelas/${kafelaId}/roll-calls/${rollCallId}/close`)
       .then((r) => unwrap<RollCall>(r)),
+
+  /**
+   * Open an authenticated SSE stream. Browser EventSource cannot set Authorization,
+   * so we use fetch + ReadableStream and parse SSE frames.
+   */
+  subscribeEvents: async (
+    kafelaId: string,
+    onEvent: (type: string) => void,
+    signal: AbortSignal
+  ): Promise<void> => {
+    const token = await storageService.get('auth_token');
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_BASE_URL}/kafelas/${kafelaId}/events`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'text/event-stream',
+      },
+      signal,
+    });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`SSE failed (${response.status})`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const frame = buffer.slice(0, sep);
+        buffer = buffer.slice(sep + 2);
+        const dataLine = frame
+          .split('\n')
+          .find((line) => line.startsWith('data:'));
+        if (!dataLine) continue;
+        try {
+          const payload = JSON.parse(dataLine.slice(5).trim()) as { type?: string };
+          if (payload.type) onEvent(payload.type);
+        } catch {
+          /* ignore malformed frames */
+        }
+      }
+    }
+  },
 };

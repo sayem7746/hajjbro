@@ -20,7 +20,7 @@ import type { Broadcast } from '../types/kafela';
 import { Geolocation } from '@capacitor/geolocation';
 
 const KafelaBroadcastPage: React.FC = () => {
-  const { kafela, me, groups, broadcasts, canSendBroadcast, isAdmin, refreshBroadcasts } =
+  const { kafela, me, groups, broadcasts, canSendBroadcast, isAdmin, refreshBroadcasts, liveRevision } =
     useKafela();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -37,6 +37,14 @@ const KafelaBroadcastPage: React.FC = () => {
   useEffect(() => {
     void refreshBroadcasts();
   }, [refreshBroadcasts]);
+
+  useEffect(() => {
+    if (!kafela || !ackFor) return;
+    void kafelaApi
+      .broadcastAcks(kafela.id, ackFor.id)
+      .then(setAcks)
+      .catch(() => setAcks([]));
+  }, [liveRevision, kafela, ackFor]);
 
   const send = async () => {
     if (!kafela || !title.trim() || !body.trim()) return;

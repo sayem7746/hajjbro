@@ -9,6 +9,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import { GROUP_COLORS, isKafelaAdmin } from '../types/kafela.js';
 import { generateJoinCode, normalizeJoinCode } from '../utils/joinCode.js';
 import { sendMulticastPush } from './firebase.js';
+import { publishKafelaChange } from './kafelaLive.js';
 import { logger } from '../utils/logger.js';
 
 const STALE_LOCATION_MS = 10 * 60 * 1000;
@@ -194,6 +195,7 @@ export async function createKafela(
   });
 
   const me = await requireActiveMember(userId, kafela.id);
+  publishKafelaChange(kafela.id);
   return { kafela, me };
 }
 
@@ -266,6 +268,7 @@ export async function joinKafela(
   }
 
   const me = await requireActiveMember(userId, kafela.id);
+  publishKafelaChange(kafela.id);
   return { kafela, me };
 }
 
@@ -344,6 +347,7 @@ export async function leaveKafela(userId: string, kafelaId: string) {
     });
   }
 
+  publishKafelaChange(kafelaId);
   return { left: true };
 }
 
@@ -356,6 +360,7 @@ export async function rotateJoinCode(userId: string, kafelaId: string) {
     data: { joinCode },
     select: kafelaSelect,
   });
+  publishKafelaChange(kafelaId);
   return kafela;
 }
 
@@ -423,6 +428,7 @@ export async function updateMemberRole(
     data: { role },
     select: memberSelect,
   });
+  publishKafelaChange(kafelaId);
   return updated;
 }
 
@@ -451,6 +457,7 @@ export async function removeMember(actorUserId: string, kafelaId: string, member
     data: { status: 'removed', groupId: null, sharingEnabled: false },
   });
 
+  publishKafelaChange(kafelaId);
   return { removed: true };
 }
 
@@ -471,11 +478,13 @@ export async function updateMyProfile(
   if (input.tentOrRoom !== undefined) data.tentOrRoom = input.tentOrRoom?.trim() || null;
   if (input.sharingEnabled !== undefined) data.sharingEnabled = Boolean(input.sharingEnabled);
 
-  return prisma.kafelaMember.update({
+  const updated = await prisma.kafelaMember.update({
     where: { id: me.id },
     data,
     select: memberSelect,
   });
+  publishKafelaChange(kafelaId);
+  return updated;
 }
 
 // ─── Phase 2: Groups ─────────────────────────────────────────────────────────
@@ -526,7 +535,7 @@ export async function createGroup(
     return created;
   });
 
-  return prisma.kafelaGroup.findUniqueOrThrow({
+  const created = await prisma.kafelaGroup.findUniqueOrThrow({
     where: { id: group.id },
     select: {
       id: true,
@@ -545,6 +554,8 @@ export async function createGroup(
       },
     },
   });
+  publishKafelaChange(kafelaId);
+  return created;
 }
 
 export async function updateGroup(
@@ -608,7 +619,7 @@ export async function updateGroup(
     await prisma.kafelaGroup.update({ where: { id: groupId }, data });
   }
 
-  return prisma.kafelaGroup.findUniqueOrThrow({
+  const updated = await prisma.kafelaGroup.findUniqueOrThrow({
     where: { id: groupId },
     select: {
       id: true,
@@ -627,6 +638,8 @@ export async function updateGroup(
       },
     },
   });
+  publishKafelaChange(kafelaId);
+  return updated;
 }
 
 export async function deleteGroup(userId: string, kafelaId: string, groupId: string) {
@@ -653,6 +666,7 @@ export async function deleteGroup(userId: string, kafelaId: string, groupId: str
     await tx.kafelaGroup.delete({ where: { id: groupId } });
   });
 
+  publishKafelaChange(kafelaId);
   return { deleted: true };
 }
 
@@ -699,7 +713,9 @@ export async function assignMembersToGroup(
     data: { groupId },
   });
 
-  return listMembers(userId, kafelaId);
+  const roster = await listMembers(userId, kafelaId);
+  publishKafelaChange(kafelaId);
+  return roster;
 }
 
 export async function listGroups(userId: string, kafelaId: string) {
@@ -914,6 +930,7 @@ export async function createBroadcast(
     }
   );
 
+  publishKafelaChange(kafelaId);
   return broadcast;
 }
 
@@ -969,6 +986,7 @@ export async function ackBroadcast(userId: string, kafelaId: string, broadcastId
     update: { seenAt: new Date() },
   });
 
+  publishKafelaChange(kafelaId);
   return { acked: true };
 }
 
@@ -1085,6 +1103,7 @@ export async function createSos(
     memberId: me.id,
   });
 
+  publishKafelaChange(kafelaId);
   return sos;
 }
 
@@ -1139,7 +1158,7 @@ export async function resolveSos(userId: string, kafelaId: string, sosId: string
 
   if (!canResolve) throw new AppError(403, 'Not allowed to resolve this SOS');
 
-  return prisma.sosEvent.update({
+  const resolved = await prisma.sosEvent.update({
     where: { id: sosId },
     data: { resolvedAt: new Date(), resolvedById: me.id },
     include: {
@@ -1157,6 +1176,8 @@ export async function resolveSos(userId: string, kafelaId: string, sosId: string
       },
     },
   });
+  publishKafelaChange(kafelaId);
+  return resolved;
 }
 
 export async function createRollCall(
@@ -1211,6 +1232,7 @@ export async function createRollCall(
     rollCallId: rollCall.id,
   });
 
+  publishKafelaChange(kafelaId);
   return rollCall;
 }
 
@@ -1237,6 +1259,7 @@ export async function respondRollCall(
     update: { present, respondedAt: new Date() },
   });
 
+  publishKafelaChange(kafelaId);
   return { responded: true, present };
 }
 
@@ -1340,10 +1363,31 @@ export async function closeRollCall(userId: string, kafelaId: string, rollCallId
     (me.role === 'group_admin' && me.groupId === rollCall.groupId);
   if (!canClose) throw new AppError(403, 'Not allowed to close this roll call');
 
-  return prisma.rollCall.update({
+  const closed = await prisma.rollCall.update({
     where: { id: rollCallId },
     data: { closedAt: new Date() },
   });
+  publishKafelaChange(kafelaId);
+  return closed;
+}
+
+export async function getKafelaSnapshot(userId: string, kafelaId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const kafela = await prisma.kafela.findUnique({
+    where: { id: kafelaId },
+    select: kafelaSelect,
+  });
+  if (!kafela || !kafela.isActive) throw new AppError(404, 'Kafela not found');
+
+  const [members, groups, broadcasts, sosEvents, rollCalls] = await Promise.all([
+    listMembers(userId, kafelaId),
+    listGroups(userId, kafelaId),
+    listBroadcasts(userId, kafelaId),
+    listSos(userId, kafelaId, true),
+    listRollCalls(userId, kafelaId),
+  ]);
+
+  return { kafela, me, members, groups, broadcasts, sosEvents, rollCalls };
 }
 
 export type { KafelaMember };

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import type { BroadcastPriority, KafelaMemberRole } from '@prisma/client';
 import * as kafelaService from '../services/kafelaService.js';
+import { subscribeKafela } from '../services/kafelaLive.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 function requireUserId(req: Request): string {
@@ -37,6 +38,55 @@ export async function getMine(req: Request, res: Response, next: NextFunction): 
   try {
     const data = await kafelaService.getMyKafela(requireUserId(req));
     res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getSnapshot(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await kafelaService.getKafelaSnapshot(requireUserId(req), kafelaIdParam(req));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function streamEvents(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = requireUserId(req);
+    const kafelaId = kafelaIdParam(req);
+    await kafelaService.requireActiveMember(userId, kafelaId);
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    const send = (payload: Record<string, string>) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    send({ type: 'connected' });
+
+    const unsubscribe = subscribeKafela(kafelaId, () => {
+      send({ type: 'changed' });
+    });
+
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 20_000);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    req.on('close', cleanup);
+    res.on('close', cleanup);
   } catch (e) {
     next(e);
   }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
+import { kafelaLiveRateLimiter } from '../middleware/rateLimit.js';
 import * as kafela from '../controllers/kafelaController.js';
 
 const router = Router();
@@ -10,6 +11,9 @@ router.use(authMiddleware);
 router.post('/', kafela.create);
 router.post('/join', kafela.join);
 router.get('/mine', kafela.getMine);
+
+router.get('/:kafelaId/snapshot', kafelaLiveRateLimiter, kafela.getSnapshot);
+router.get('/:kafelaId/events', kafelaLiveRateLimiter, kafela.streamEvents);
 
 router.post('/:kafelaId/leave', kafela.leave);
 router.post('/:kafelaId/rotate-code', kafela.rotateCode);

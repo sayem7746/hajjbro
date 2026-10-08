@@ -8,7 +8,17 @@ import routes from './routes/index.js';
 
 const app = express();
 
-app.use(compression());
+app.use(
+  compression({
+    filter: (req, res) => {
+      // SSE must not be compressed — proxies buffer compressed streams.
+      if (req.path.includes('/events') || res.getHeader('Content-Type') === 'text/event-stream') {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  })
+);
 app.use(
   cors({
     origin: (env.CORS_ORIGINS ?? '*') === '*' ? true : (env.CORS_ORIGINS ?? '').split(',').map((o) => o.trim()),
