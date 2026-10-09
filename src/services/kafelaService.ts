@@ -93,6 +93,15 @@ function assertKafelaAdmin(member: { role: KafelaMemberRole }) {
   }
 }
 
+function assertCanManageBroadcast(
+  me: { role: KafelaMemberRole; groupId: string | null },
+  broadcast: { groupId: string | null }
+) {
+  if (isKafelaAdmin(me.role)) return;
+  if (me.role === 'group_admin' && me.groupId && broadcast.groupId === me.groupId) return;
+  throw new AppError(403, 'Not allowed to change this broadcast');
+}
+
 function canManageGroup(
   actor: { id: string; role: KafelaMemberRole; groupId: string | null },
   group: { id: string; adminMemberId: string | null }
@@ -1033,6 +1042,77 @@ export async function getBroadcastAckStatus(
     seen: r.broadcastAcks.length > 0,
     seenAt: r.broadcastAcks[0]?.seenAt ?? null,
   }));
+}
+
+const broadcastWriteInclude = {
+  group: { select: { id: true, name: true, color: true } },
+  author: {
+    select: { id: true, displayName: true, user: { select: { name: true } } },
+  },
+  _count: { select: { acks: true } },
+} as const;
+
+export async function updateBroadcast(
+  userId: string,
+  kafelaId: string,
+  broadcastId: string,
+  input: {
+    title?: string;
+    body?: string;
+    priority?: BroadcastPriority;
+  }
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const existing = await prisma.broadcast.findFirst({
+    where: { id: broadcastId, kafelaId },
+  });
+  if (!existing) throw new AppError(404, 'Broadcast not found');
+  assertCanManageBroadcast(me, existing);
+
+  const title = input.title !== undefined ? input.title.trim() : existing.title;
+  const body = input.body !== undefined ? input.body.trim() : existing.body;
+  if (!title || !body) throw new AppError(400, 'Title and body are required');
+
+  const priority: BroadcastPriority =
+    input.priority === undefined ? existing.priority : input.priority === 'urgent' ? 'urgent' : 'info';
+
+  const broadcast = await prisma.broadcast.update({
+    where: { id: existing.id },
+    data: { title, body, priority },
+    include: broadcastWriteInclude,
+  });
+
+  publishKafelaChange(kafelaId);
+  return broadcast;
+}
+
+export async function deleteBroadcast(userId: string, kafelaId: string, broadcastId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const existing = await prisma.broadcast.findFirst({
+    where: { id: broadcastId, kafelaId },
+  });
+  if (!existing) throw new AppError(404, 'Broadcast not found');
+  assertCanManageBroadcast(me, existing);
+
+  await prisma.broadcast.delete({ where: { id: existing.id } });
+  publishKafelaChange(kafelaId);
+  return { deleted: true };
+}
+
+export async function deleteAllBroadcasts(userId: string, kafelaId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+
+  const where: Prisma.BroadcastWhereInput = { kafelaId };
+  if (!isKafelaAdmin(me.role)) {
+    if (me.role !== 'group_admin' || !me.groupId) {
+      throw new AppError(403, 'Only kafela or group admins can delete broadcasts');
+    }
+    where.groupId = me.groupId;
+  }
+
+  const result = await prisma.broadcast.deleteMany({ where });
+  if (result.count > 0) publishKafelaChange(kafelaId);
+  return { deleted: result.count };
 }
 
 // ─── Phase 5: SOS + Roll call ────────────────────────────────────────────────

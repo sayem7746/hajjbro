@@ -36,6 +36,9 @@ router.get('/:kafelaId/locations', kafela.listLocations);
 // Phase 4 — broadcasts
 router.get('/:kafelaId/broadcasts', kafela.listBroadcasts);
 router.post('/:kafelaId/broadcasts', kafela.createBroadcast);
+router.delete('/:kafelaId/broadcasts', kafela.deleteAllBroadcasts);
+router.patch('/:kafelaId/broadcasts/:broadcastId', kafela.updateBroadcast);
+router.delete('/:kafelaId/broadcasts/:broadcastId', kafela.deleteBroadcast);
 router.post('/:kafelaId/broadcasts/:broadcastId/ack', kafela.ackBroadcast);
 router.get('/:kafelaId/broadcasts/:broadcastId/acks', kafela.broadcastAcks);
 

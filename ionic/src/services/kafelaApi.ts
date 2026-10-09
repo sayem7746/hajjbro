@@ -128,6 +128,23 @@ export const kafelaApi = {
     }
   ) => api.post(`/kafelas/${kafelaId}/broadcasts`, body).then((r) => unwrap<Broadcast>(r)),
 
+  updateBroadcast: (
+    kafelaId: string,
+    broadcastId: string,
+    body: { title: string; body: string; priority?: 'info' | 'urgent' }
+  ) =>
+    api
+      .patch(`/kafelas/${kafelaId}/broadcasts/${broadcastId}`, body)
+      .then((r) => unwrap<Broadcast>(r)),
+
+  deleteBroadcast: (kafelaId: string, broadcastId: string) =>
+    api
+      .delete(`/kafelas/${kafelaId}/broadcasts/${broadcastId}`)
+      .then((r) => unwrap<{ deleted: boolean }>(r)),
+
+  deleteAllBroadcasts: (kafelaId: string) =>
+    api.delete(`/kafelas/${kafelaId}/broadcasts`).then((r) => unwrap<{ deleted: number }>(r)),
+
   ackBroadcast: (kafelaId: string, broadcastId: string) =>
     api
       .post(`/kafelas/${kafelaId}/broadcasts/${broadcastId}/ack`)

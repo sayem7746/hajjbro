@@ -317,6 +317,59 @@ export async function ackBroadcast(
   }
 }
 
+export async function updateBroadcast(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const body = req.body ?? {};
+    const data = await kafelaService.updateBroadcast(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.broadcastId,
+      {
+        title: body.title,
+        body: body.body,
+        priority: body.priority as BroadcastPriority | undefined,
+      }
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function deleteBroadcast(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.deleteBroadcast(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.broadcastId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function deleteAllBroadcasts(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.deleteAllBroadcasts(requireUserId(req), kafelaIdParam(req));
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function broadcastAcks(
   req: Request,
   res: Response,
