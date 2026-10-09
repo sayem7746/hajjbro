@@ -1,5 +1,17 @@
 export type KafelaMemberRole = 'kafela_admin' | 'group_admin' | 'member';
 
+export type KafelaCompanionRelation = 'spouse' | 'parent' | 'child' | 'other';
+
+export interface KafelaCompanion {
+  id: string;
+  memberId: string;
+  name: string;
+  relation: KafelaCompanionRelation;
+  note: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface KafelaGroupSummary {
   id: string;
   name: string;
@@ -26,6 +38,8 @@ export interface KafelaSummary {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Active phone holders + companions. */
+  headcount?: number;
   _count?: { members: number };
   groups?: KafelaGroupSummary[];
 }
@@ -60,6 +74,7 @@ export interface KafelaMember {
     phone: string | null;
   };
   group: KafelaGroupSummary | null;
+  companions?: KafelaCompanion[];
   location?: {
     latitude: number | string;
     longitude: number | string;
@@ -72,6 +87,9 @@ export interface KafelaMember {
 export interface VisibleLocation {
   memberId: string;
   displayName: string;
+  holderName?: string;
+  companions?: Array<{ id: string; name: string; relation: KafelaCompanionRelation }>;
+  householdSize?: number;
   phone: string | null;
   tentOrRoom: string | null;
   role: KafelaMemberRole;
@@ -153,3 +171,25 @@ export function canBroadcast(role: KafelaMemberRole): boolean {
 export function memberLabel(m: { displayName?: string | null; user?: { name?: string | null } }): string {
   return m.displayName || m.user?.name || 'Pilgrim';
 }
+
+export function householdSize(m: { companions?: KafelaCompanion[] | null }): number {
+  return 1 + (m.companions?.length ?? 0);
+}
+
+export function householdLabel(m: {
+  displayName?: string | null;
+  user?: { name?: string | null };
+  companions?: KafelaCompanion[] | null;
+}): string {
+  const name = memberLabel(m);
+  const companions = m.companions ?? [];
+  if (!companions.length) return name;
+  return `${name} · ${companions.map((c) => c.name).join(', ')}`;
+}
+
+export const COMPANION_RELATION_LABELS: Record<KafelaCompanionRelation, string> = {
+  spouse: 'Spouse',
+  parent: 'Parent',
+  child: 'Child',
+  other: 'Other',
+};

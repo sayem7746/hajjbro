@@ -1,5 +1,6 @@
 import type {
   BroadcastPriority,
+  KafelaCompanionRelation,
   KafelaMember,
   KafelaMemberRole,
   Prisma,
@@ -13,6 +14,9 @@ import { publishKafelaChange } from './kafelaLive.js';
 import { logger } from '../utils/logger.js';
 
 const STALE_LOCATION_MS = 10 * 60 * 1000;
+export const MAX_COMPANIONS_PER_MEMBER = 3;
+
+const COMPANION_RELATIONS: KafelaCompanionRelation[] = ['spouse', 'parent', 'child', 'other'];
 
 const memberUserSelect = {
   id: true,
@@ -20,6 +24,16 @@ const memberUserSelect = {
   email: true,
   phone: true,
   fcmToken: true,
+} as const;
+
+const companionSelect = {
+  id: true,
+  memberId: true,
+  name: true,
+  relation: true,
+  note: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
 const memberSelect = {
@@ -37,6 +51,10 @@ const memberSelect = {
   updatedAt: true,
   user: { select: memberUserSelect },
   group: { select: { id: true, name: true, color: true, adminMemberId: true } },
+  companions: {
+    select: companionSelect,
+    orderBy: { createdAt: 'asc' as const },
+  },
   location: {
     select: {
       latitude: true,
@@ -119,6 +137,45 @@ function canSeeMemberLocation(
   if (isKafelaAdmin(viewer.role)) return true;
   if (!target.groupId || viewer.groupId !== target.groupId) return false;
   return true;
+}
+
+function memberDisplayName(m: {
+  displayName?: string | null;
+  user?: { name?: string | null } | null;
+}): string {
+  return m.displayName || m.user?.name || 'Pilgrim';
+}
+
+function householdLabel(
+  holderName: string,
+  companions: Array<{ name: string }>
+): string {
+  if (!companions.length) return holderName;
+  return `${holderName} · ${companions.map((c) => c.name).join(', ')}`;
+}
+
+async function getOccupiedHeadcount(kafelaId: string): Promise<number> {
+  const [memberCount, companionCount] = await Promise.all([
+    prisma.kafelaMember.count({ where: { kafelaId, status: 'active' } }),
+    prisma.kafelaCompanion.count({
+      where: { member: { kafelaId, status: 'active' } },
+    }),
+  ]);
+  return memberCount + companionCount;
+}
+
+async function assertHeadcountCapacity(kafelaId: string, maxMembers: number, adding = 1) {
+  const occupied = await getOccupiedHeadcount(kafelaId);
+  if (occupied + adding > maxMembers) {
+    throw new AppError(409, 'This kafela is full');
+  }
+}
+
+function parseCompanionRelation(value: unknown): KafelaCompanionRelation {
+  if (typeof value === 'string' && COMPANION_RELATIONS.includes(value as KafelaCompanionRelation)) {
+    return value as KafelaCompanionRelation;
+  }
+  return 'other';
 }
 
 async function notifyMembers(
@@ -230,12 +287,7 @@ export async function joinKafela(
   });
   if (!kafela || !kafela.isActive) throw new AppError(404, 'Invalid join code');
 
-  const activeCount = await prisma.kafelaMember.count({
-    where: { kafelaId: kafela.id, status: 'active' },
-  });
-  if (activeCount >= kafela.maxMembers) {
-    throw new AppError(409, 'This kafela is full');
-  }
+  await assertHeadcountCapacity(kafela.id, kafela.maxMembers, 1);
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError(404, 'User not found');
@@ -285,24 +337,28 @@ export async function getMyKafela(userId: string) {
   const me = await getActiveMembership(userId);
   if (!me) return null;
 
-  const kafela = await prisma.kafela.findUnique({
-    where: { id: me.kafelaId },
-    select: {
-      ...kafelaSelect,
-      groups: {
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          adminMemberId: true,
-          _count: { select: { members: { where: { status: 'active' } } } },
+  const [kafela, headcount] = await Promise.all([
+    prisma.kafela.findUnique({
+      where: { id: me.kafelaId },
+      select: {
+        ...kafelaSelect,
+        groups: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            adminMemberId: true,
+            _count: { select: { members: { where: { status: 'active' } } } },
+          },
+          orderBy: { name: 'asc' },
         },
-        orderBy: { name: 'asc' },
       },
-    },
-  });
+    }),
+    getOccupiedHeadcount(me.kafelaId),
+  ]);
 
-  return { kafela, me };
+  if (!kafela) return null;
+  return { kafela: { ...kafela, headcount }, me };
 }
 
 export async function leaveKafela(userId: string, kafelaId: string) {
@@ -341,10 +397,13 @@ export async function leaveKafela(userId: string, kafelaId: string) {
     }
   }
 
-  await prisma.kafelaMember.update({
-    where: { id: me.id },
-    data: { status: 'left', groupId: null, role: 'member', sharingEnabled: false },
-  });
+  await prisma.$transaction([
+    prisma.kafelaCompanion.deleteMany({ where: { memberId: me.id } }),
+    prisma.kafelaMember.update({
+      where: { id: me.id },
+      data: { status: 'left', groupId: null, role: 'member', sharingEnabled: false },
+    }),
+  ]);
 
   const remaining = await prisma.kafelaMember.count({
     where: { kafelaId, status: 'active' },
@@ -388,6 +447,7 @@ export async function listMembers(userId: string, kafelaId: string, q?: string) 
       { tentOrRoom: { contains: term, mode: 'insensitive' } },
       { user: { name: { contains: term, mode: 'insensitive' } } },
       { user: { email: { contains: term, mode: 'insensitive' } } },
+      { companions: { some: { name: { contains: term, mode: 'insensitive' } } } },
     ];
   }
 
@@ -461,10 +521,13 @@ export async function removeMember(actorUserId: string, kafelaId: string, member
     });
   }
 
-  await prisma.kafelaMember.update({
-    where: { id: memberId },
-    data: { status: 'removed', groupId: null, sharingEnabled: false },
-  });
+  await prisma.$transaction([
+    prisma.kafelaCompanion.deleteMany({ where: { memberId } }),
+    prisma.kafelaMember.update({
+      where: { id: memberId },
+      data: { status: 'removed', groupId: null, sharingEnabled: false },
+    }),
+  ]);
 
   publishKafelaChange(kafelaId);
   return { removed: true };
@@ -494,6 +557,118 @@ export async function updateMyProfile(
   });
   publishKafelaChange(kafelaId);
   return updated;
+}
+
+// ─── Household companions ────────────────────────────────────────────────────
+
+async function requireCompanionTarget(
+  actor: Awaited<ReturnType<typeof requireActiveMember>>,
+  kafelaId: string,
+  memberId: string
+) {
+  if (actor.id !== memberId && !isKafelaAdmin(actor.role)) {
+    throw new AppError(403, 'Only the phone holder or a kafela admin can manage this household');
+  }
+  const target = await prisma.kafelaMember.findFirst({
+    where: { id: memberId, kafelaId, status: 'active' },
+    select: { id: true, kafelaId: true },
+  });
+  if (!target) throw new AppError(404, 'Member not found');
+  return target;
+}
+
+export async function listCompanions(userId: string, kafelaId: string, memberId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  await requireCompanionTarget(me, kafelaId, memberId);
+  return prisma.kafelaCompanion.findMany({
+    where: { memberId },
+    select: companionSelect,
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+export async function createCompanion(
+  userId: string,
+  kafelaId: string,
+  memberId: string,
+  input: { name: string; relation?: string; note?: string | null }
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  await requireCompanionTarget(me, kafelaId, memberId);
+
+  const name = input.name?.trim();
+  if (!name || name.length < 1) throw new AppError(400, 'Companion name is required');
+
+  const existingCount = await prisma.kafelaCompanion.count({ where: { memberId } });
+  if (existingCount >= MAX_COMPANIONS_PER_MEMBER) {
+    throw new AppError(409, `A household can have at most ${MAX_COMPANIONS_PER_MEMBER} companions`);
+  }
+
+  const kafela = await prisma.kafela.findUnique({
+    where: { id: kafelaId },
+    select: { maxMembers: true, isActive: true },
+  });
+  if (!kafela?.isActive) throw new AppError(404, 'Kafela not found');
+  await assertHeadcountCapacity(kafelaId, kafela.maxMembers, 1);
+
+  const companion = await prisma.kafelaCompanion.create({
+    data: {
+      memberId,
+      name,
+      relation: parseCompanionRelation(input.relation),
+      note: input.note?.trim() || null,
+    },
+    select: companionSelect,
+  });
+
+  publishKafelaChange(kafelaId);
+  return companion;
+}
+
+export async function updateCompanion(
+  userId: string,
+  kafelaId: string,
+  companionId: string,
+  input: { name?: string; relation?: string; note?: string | null }
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const companion = await prisma.kafelaCompanion.findFirst({
+    where: { id: companionId, member: { kafelaId, status: 'active' } },
+    select: { id: true, memberId: true },
+  });
+  if (!companion) throw new AppError(404, 'Companion not found');
+  await requireCompanionTarget(me, kafelaId, companion.memberId);
+
+  const data: Prisma.KafelaCompanionUpdateInput = {};
+  if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (!name) throw new AppError(400, 'Companion name is required');
+    data.name = name;
+  }
+  if (input.relation !== undefined) data.relation = parseCompanionRelation(input.relation);
+  if (input.note !== undefined) data.note = input.note?.trim() || null;
+
+  const updated = await prisma.kafelaCompanion.update({
+    where: { id: companionId },
+    data,
+    select: companionSelect,
+  });
+  publishKafelaChange(kafelaId);
+  return updated;
+}
+
+export async function deleteCompanion(userId: string, kafelaId: string, companionId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const companion = await prisma.kafelaCompanion.findFirst({
+    where: { id: companionId, member: { kafelaId, status: 'active' } },
+    select: { id: true, memberId: true },
+  });
+  if (!companion) throw new AppError(404, 'Companion not found');
+  await requireCompanionTarget(me, kafelaId, companion.memberId);
+
+  await prisma.kafelaCompanion.delete({ where: { id: companionId } });
+  publishKafelaChange(kafelaId);
+  return { deleted: true };
 }
 
 // ─── Phase 2: Groups ─────────────────────────────────────────────────────────
@@ -812,6 +987,7 @@ export async function getVisibleLocations(userId: string, kafelaId: string) {
       tentOrRoom: true,
       user: { select: { id: true, name: true, phone: true } },
       group: { select: { id: true, name: true, color: true, adminMemberId: true } },
+      companions: { select: { id: true, name: true, relation: true }, orderBy: { createdAt: 'asc' } },
       location: {
         select: {
           latitude: true,
@@ -832,10 +1008,14 @@ export async function getVisibleLocations(userId: string, kafelaId: string) {
       const ageMs = updatedAt != null ? now - updatedAt : null;
       const stale = ageMs != null ? ageMs > STALE_LOCATION_MS : true;
       const showCoords = m.sharingEnabled && m.location && (m.id === me.id || m.sharingEnabled);
+      const holderName = memberDisplayName(m);
 
       return {
         memberId: m.id,
-        displayName: m.displayName || m.user.name || 'Pilgrim',
+        displayName: householdLabel(holderName, m.companions),
+        holderName,
+        companions: m.companions,
+        householdSize: 1 + m.companions.length,
         phone: m.phone || m.user.phone,
         tentOrRoom: m.tentOrRoom,
         role: m.role,
@@ -1028,6 +1208,7 @@ export async function getBroadcastAckStatus(
       id: true,
       displayName: true,
       user: { select: { name: true } },
+      companions: { select: { id: true } },
       broadcastAcks: {
         where: { broadcastId },
         select: { seenAt: true },
@@ -1036,12 +1217,20 @@ export async function getBroadcastAckStatus(
     },
   });
 
-  return recipients.map((r) => ({
-    memberId: r.id,
-    displayName: r.displayName || r.user.name || 'Pilgrim',
-    seen: r.broadcastAcks.length > 0,
-    seenAt: r.broadcastAcks[0]?.seenAt ?? null,
-  }));
+  return recipients.map((r) => {
+    const householdSize = 1 + r.companions.length;
+    const name = memberDisplayName(r);
+    const seen = r.broadcastAcks.length > 0;
+    return {
+      memberId: r.id,
+      displayName: name,
+      householdSize,
+      confirmedFor: seen ? householdSize : 0,
+      label: seen ? `${name} confirmed for ${householdSize}` : name,
+      seen,
+      seenAt: r.broadcastAcks[0]?.seenAt ?? null,
+    };
+  });
 }
 
 const broadcastWriteInclude = {
@@ -1124,6 +1313,7 @@ export async function createSos(
     latitude?: number | null;
     longitude?: number | null;
     note?: string | null;
+    companionId?: string | null;
   }
 ) {
   const me = await requireActiveMember(userId, kafelaId);
@@ -1139,13 +1329,32 @@ export async function createSos(
     }
   }
 
+  let subjectName = memberDisplayName(me);
+  let companionId: string | null = null;
+  if (input.companionId) {
+    const companion = await prisma.kafelaCompanion.findFirst({
+      where: { id: input.companionId, memberId: me.id },
+      select: { id: true, name: true },
+    });
+    if (!companion) throw new AppError(404, 'Companion not found');
+    companionId = companion.id;
+    subjectName = companion.name;
+  }
+
+  const userNote = input.note?.trim() || null;
+  const noteParts = [
+    companionId ? `For: ${subjectName} (companion)` : `For: ${subjectName}`,
+    userNote,
+  ].filter(Boolean);
+  const note = noteParts.join(' — ') || null;
+
   const sos = await prisma.sosEvent.create({
     data: {
       kafelaId,
       memberId: me.id,
       latitude: lat,
       longitude: lng,
-      note: input.note?.trim() || null,
+      note,
     },
     include: {
       member: {
@@ -1156,6 +1365,7 @@ export async function createSos(
           groupId: true,
           group: { select: { id: true, name: true, color: true } },
           user: { select: { name: true, phone: true } },
+          companions: { select: companionSelect },
         },
       },
     },
@@ -1175,8 +1385,8 @@ export async function createSos(
     select: { user: { select: { id: true, fcmToken: true } } },
   });
 
-  const name = me.displayName || me.user.name || 'A pilgrim';
-  await notifyMembers(leaders, `SOS: ${name}`, input.note?.trim() || 'Needs help now', {
+  const name = subjectName;
+  await notifyMembers(leaders, `SOS: ${name}`, userNote || 'Needs help now', {
     type: 'kafela_sos',
     kafelaId,
     sosId: sos.id,
@@ -1316,11 +1526,44 @@ export async function createRollCall(
   return rollCall;
 }
 
+function canMarkRollCallPerson(
+  me: { id: string; role: KafelaMemberRole; groupId: string | null },
+  rollCall: { groupId: string | null; authorId: string },
+  targetMemberId: string,
+  targetGroupId: string | null
+): boolean {
+  if (me.id === targetMemberId) return true;
+  if (isKafelaAdmin(me.role)) return true;
+  return (
+    me.role === 'group_admin' &&
+    !!me.groupId &&
+    targetGroupId === me.groupId &&
+    (rollCall.groupId === null || rollCall.groupId === me.groupId)
+  );
+}
+
 export async function respondRollCall(
   userId: string,
   kafelaId: string,
   rollCallId: string,
   present = true
+) {
+  return markRollCallPresence(userId, kafelaId, rollCallId, {
+    subjectType: 'member',
+    present,
+  });
+}
+
+export async function markRollCallPresence(
+  userId: string,
+  kafelaId: string,
+  rollCallId: string,
+  input: {
+    subjectType: 'member' | 'companion';
+    memberId?: string | null;
+    companionId?: string | null;
+    present?: boolean;
+  }
 ) {
   const me = await requireActiveMember(userId, kafelaId);
   const rollCall = await prisma.rollCall.findFirst({
@@ -1333,14 +1576,89 @@ export async function respondRollCall(
     throw new AppError(403, 'This roll call is not for your group');
   }
 
+  const present = input.present !== false;
+
+  if (input.subjectType === 'companion' || input.companionId) {
+    const companionId = input.companionId;
+    if (!companionId) throw new AppError(400, 'companionId is required');
+
+    const companion = await prisma.kafelaCompanion.findFirst({
+      where: {
+        id: companionId,
+        member: {
+          kafelaId,
+          status: 'active',
+          ...(rollCall.groupId ? { groupId: rollCall.groupId } : {}),
+        },
+      },
+      select: {
+        id: true,
+        memberId: true,
+        member: { select: { id: true, groupId: true } },
+      },
+    });
+    if (!companion) throw new AppError(404, 'Companion not found for this roll call');
+
+    if (!canMarkRollCallPerson(me, rollCall, companion.memberId, companion.member.groupId)) {
+      throw new AppError(403, 'Not allowed to mark this person');
+    }
+
+    await prisma.rollCallCompanionResponse.upsert({
+      where: { rollCallId_companionId: { rollCallId, companionId } },
+      create: {
+        rollCallId,
+        companionId,
+        present,
+        markedById: me.id,
+      },
+      update: { present, respondedAt: new Date(), markedById: me.id },
+    });
+
+    publishKafelaChange(kafelaId);
+    return {
+      responded: true,
+      present,
+      subjectType: 'companion' as const,
+      companionId,
+      memberId: companion.memberId,
+    };
+  }
+
+  const memberId = input.memberId || me.id;
+  const target = await prisma.kafelaMember.findFirst({
+    where: {
+      id: memberId,
+      kafelaId,
+      status: 'active',
+      ...(rollCall.groupId ? { groupId: rollCall.groupId } : {}),
+    },
+    select: { id: true, groupId: true },
+  });
+  if (!target) throw new AppError(404, 'Member not found for this roll call');
+
+  if (!canMarkRollCallPerson(me, rollCall, target.id, target.groupId)) {
+    throw new AppError(403, 'Not allowed to mark this person');
+  }
+
   await prisma.rollCallResponse.upsert({
-    where: { rollCallId_memberId: { rollCallId, memberId: me.id } },
-    create: { rollCallId, memberId: me.id, present },
-    update: { present, respondedAt: new Date() },
+    where: { rollCallId_memberId: { rollCallId, memberId: target.id } },
+    create: {
+      rollCallId,
+      memberId: target.id,
+      present,
+      markedById: me.id,
+    },
+    update: { present, respondedAt: new Date(), markedById: me.id },
   });
 
   publishKafelaChange(kafelaId);
-  return { responded: true, present };
+  return {
+    responded: true,
+    present,
+    subjectType: 'member' as const,
+    memberId: target.id,
+    companionId: null,
+  };
 }
 
 export async function getRollCallStatus(userId: string, kafelaId: string, rollCallId: string) {
@@ -1377,26 +1695,82 @@ export async function getRollCallStatus(userId: string, kafelaId: string, rollCa
       phone: true,
       group: { select: { id: true, name: true, color: true } },
       user: { select: { name: true, phone: true } },
+      companions: {
+        select: {
+          id: true,
+          name: true,
+          relation: true,
+          rollCallResponses: {
+            where: { rollCallId },
+            select: { present: true, respondedAt: true, markedById: true },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
       rollCallResponses: {
         where: { rollCallId },
-        select: { present: true, respondedAt: true },
+        select: { present: true, respondedAt: true, markedById: true },
         take: 1,
       },
     },
     orderBy: { displayName: 'asc' },
   });
 
-  const roster = expected.map((m) => ({
-    memberId: m.id,
-    displayName: m.displayName || m.user.name || 'Pilgrim',
-    phone: m.phone || m.user.phone,
-    group: m.group,
-    present: m.rollCallResponses[0]?.present ?? null,
-    respondedAt: m.rollCallResponses[0]?.respondedAt ?? null,
-  }));
+  type RosterRow = {
+    key: string;
+    subjectType: 'member' | 'companion';
+    memberId: string;
+    companionId: string | null;
+    displayName: string;
+    householdLabel: string | null;
+    phone: string | null;
+    group: { id: string; name: string; color: string } | null;
+    present: boolean | null;
+    respondedAt: Date | null;
+    canMark: boolean;
+  };
+
+  const roster: RosterRow[] = [];
+  for (const m of expected) {
+    const holderName = memberDisplayName(m);
+    const canMark = canMarkRollCallPerson(me, rollCall, m.id, m.group?.id ?? null);
+    roster.push({
+      key: `member:${m.id}`,
+      subjectType: 'member',
+      memberId: m.id,
+      companionId: null,
+      displayName: holderName,
+      householdLabel: null,
+      phone: m.phone || m.user.phone,
+      group: m.group,
+      present: m.rollCallResponses[0]?.present ?? null,
+      respondedAt: m.rollCallResponses[0]?.respondedAt ?? null,
+      canMark,
+    });
+    for (const c of m.companions) {
+      roster.push({
+        key: `companion:${c.id}`,
+        subjectType: 'companion',
+        memberId: m.id,
+        companionId: c.id,
+        displayName: c.name,
+        householdLabel: holderName,
+        phone: m.phone || m.user.phone,
+        group: m.group,
+        present: c.rollCallResponses[0]?.present ?? null,
+        respondedAt: c.rollCallResponses[0]?.respondedAt ?? null,
+        canMark,
+      });
+    }
+  }
 
   const present = roster.filter((r) => r.present === true);
   const missing = roster.filter((r) => r.present !== true);
+
+  const mine = roster.filter((r) => r.memberId === me.id);
+  const filterForViewer = (rows: RosterRow[]) =>
+    canViewFull ? rows : rows.filter((r) => r.memberId === me.id);
 
   return {
     rollCall,
@@ -1405,9 +1779,11 @@ export async function getRollCallStatus(userId: string, kafelaId: string, rollCa
       present: present.length,
       missing: missing.length,
     },
-    present: canViewFull ? present : present.filter((p) => p.memberId === me.id),
-    missing: canViewFull ? missing : missing.filter((p) => p.memberId === me.id),
-    myResponse: roster.find((r) => r.memberId === me.id) ?? null,
+    present: filterForViewer(present),
+    missing: filterForViewer(missing),
+    household: mine,
+    myResponse: roster.find((r) => r.subjectType === 'member' && r.memberId === me.id) ?? null,
+    canMarkOthers: canViewFull,
   };
 }
 
@@ -1459,15 +1835,24 @@ export async function getKafelaSnapshot(userId: string, kafelaId: string) {
   });
   if (!kafela || !kafela.isActive) throw new AppError(404, 'Kafela not found');
 
-  const [members, groups, broadcasts, sosEvents, rollCalls] = await Promise.all([
+  const [members, groups, broadcasts, sosEvents, rollCalls, headcount] = await Promise.all([
     listMembers(userId, kafelaId),
     listGroups(userId, kafelaId),
     listBroadcasts(userId, kafelaId),
     listSos(userId, kafelaId, true),
     listRollCalls(userId, kafelaId),
+    getOccupiedHeadcount(kafelaId),
   ]);
 
-  return { kafela, me, members, groups, broadcasts, sosEvents, rollCalls };
+  return {
+    kafela: { ...kafela, headcount },
+    me,
+    members,
+    groups,
+    broadcasts,
+    sosEvents,
+    rollCalls,
+  };
 }
 
 export type { KafelaMember };

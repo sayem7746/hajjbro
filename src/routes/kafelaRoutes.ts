@@ -22,6 +22,12 @@ router.patch('/:kafelaId/members/:memberId/role', kafela.updateMemberRole);
 router.delete('/:kafelaId/members/:memberId', kafela.removeMember);
 router.patch('/:kafelaId/me', kafela.updateMe);
 
+// Household companions (people without an app account)
+router.get('/:kafelaId/members/:memberId/companions', kafela.listCompanions);
+router.post('/:kafelaId/members/:memberId/companions', kafela.createCompanion);
+router.patch('/:kafelaId/companions/:companionId', kafela.updateCompanion);
+router.delete('/:kafelaId/companions/:companionId', kafela.deleteCompanion);
+
 // Phase 2 — groups
 router.get('/:kafelaId/groups', kafela.listGroups);
 router.post('/:kafelaId/groups', kafela.createGroup);

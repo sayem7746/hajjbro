@@ -165,6 +165,76 @@ export async function updateMe(req: Request, res: Response, next: NextFunction):
   }
 }
 
+export async function listCompanions(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.listCompanions(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.memberId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function createCompanion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.createCompanion(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.memberId,
+      req.body ?? {}
+    );
+    res.status(201).json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function updateCompanion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.updateCompanion(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.companionId,
+      req.body ?? {}
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function deleteCompanion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.deleteCompanion(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.companionId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function listGroups(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = await kafelaService.listGroups(requireUserId(req), kafelaIdParam(req));
@@ -463,12 +533,20 @@ export async function respondRollCall(
   next: NextFunction
 ): Promise<void> {
   try {
-    const present = req.body?.present !== false;
-    const data = await kafelaService.respondRollCall(
+    const body = req.body ?? {};
+    const present = body.present !== false;
+    const subjectType =
+      body.subjectType === 'companion' || body.companionId ? 'companion' : 'member';
+    const data = await kafelaService.markRollCallPresence(
       requireUserId(req),
       kafelaIdParam(req),
       req.params.rollCallId,
-      present
+      {
+        subjectType,
+        memberId: body.memberId,
+        companionId: body.companionId,
+        present,
+      }
     );
     res.json({ success: true, data });
   } catch (e) {

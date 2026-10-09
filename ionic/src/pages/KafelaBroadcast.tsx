@@ -21,8 +21,20 @@ import type { Broadcast } from '../types/kafela';
 import { Geolocation } from '@capacitor/geolocation';
 
 const KafelaBroadcastPage: React.FC = () => {
-  const { kafela, me, groups, broadcasts, canSendBroadcast, isAdmin, refreshBroadcasts, liveRevision } =
-    useKafela();
+  const {
+    kafela,
+    me,
+    groups,
+    broadcasts,
+    canSendBroadcast,
+    isAdmin,
+    refreshBroadcasts,
+    liveRevision,
+    queueBroadcastAck,
+    isOffline,
+    pendingCount,
+    lastUpdatedAt,
+  } = useKafela();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [groupId, setGroupId] = useState('');
@@ -32,7 +44,15 @@ const KafelaBroadcastPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [ackFor, setAckFor] = useState<Broadcast | null>(null);
   const [acks, setAcks] = useState<
-    Array<{ memberId: string; displayName: string; seen: boolean; seenAt: string | null }>
+    Array<{
+      memberId: string;
+      displayName: string;
+      householdSize?: number;
+      confirmedFor?: number;
+      label?: string;
+      seen: boolean;
+      seenAt: string | null;
+    }>
   >([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -189,6 +209,24 @@ const KafelaBroadcastPage: React.FC = () => {
       </IonHeader>
       <IonContent className="sanctuary-content">
         <div className="box-border px-5 pb-28 pt-4 font-sans text-stitch-on-surface">
+          {(isOffline || pendingCount > 0) && (
+            <div className="mb-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {isOffline
+                ? 'Offline — acknowledgements are saved on this phone until you reconnect.'
+                : 'Syncing waiting acknowledgements…'}
+              {lastUpdatedAt && (
+                <span className="mt-1 block text-xs text-amber-800/80">
+                  Last updated {new Date(lastUpdatedAt).toLocaleString()}
+                </span>
+              )}
+              {pendingCount > 0 && (
+                <span className="mt-1 block text-xs font-semibold">
+                  {pendingCount} waiting to sync
+                </span>
+              )}
+            </div>
+          )}
+
           {canSendBroadcast && (
             <section className="rounded-[24px] bg-white p-4 shadow-ambient">
               <h2 className="flex items-center gap-2 text-sm font-bold text-stitch-primary">
@@ -353,11 +391,7 @@ const KafelaBroadcastPage: React.FC = () => {
                           <button
                             type="button"
                             className="rounded-lg bg-stitch-primary px-2 py-1 text-xs font-bold text-white"
-                            onClick={() =>
-                              void kafelaApi
-                                .ackBroadcast(kafela!.id, b.id)
-                                .then(() => refreshBroadcasts())
-                            }
+                            onClick={() => void queueBroadcastAck(b.id)}
                           >
                             Ack
                           </button>
@@ -412,9 +446,14 @@ const KafelaBroadcastPage: React.FC = () => {
               </div>
               <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm">
                 {acks.map((a) => (
-                  <li key={a.memberId} className="flex justify-between">
-                    <span>{a.displayName}</span>
-                    <span className={a.seen ? 'text-green-700' : 'text-red-700'}>
+                  <li key={a.memberId} className="flex justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      {a.seen && a.label ? a.label : a.displayName}
+                      {!a.seen && a.householdSize && a.householdSize > 1
+                        ? ` · household ${a.householdSize}`
+                        : ''}
+                    </span>
+                    <span className={`shrink-0 ${a.seen ? 'text-green-700' : 'text-red-700'}`}>
                       {a.seen ? 'Seen' : 'Missing'}
                     </span>
                   </li>

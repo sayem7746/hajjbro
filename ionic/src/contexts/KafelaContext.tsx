@@ -7,7 +7,16 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { kafelaApi } from '../services/kafelaApi';
+import { kafelaApi, type KafelaSnapshot } from '../services/kafelaApi';
+import {
+  cacheKafelaSnapshot,
+  clearCachedKafelaSnapshot,
+  enqueueOutbox,
+  flushOutbox,
+  readCachedKafelaSnapshot,
+  readOutbox,
+  type KafelaOutboxItem,
+} from '../services/kafelaOffline';
 import { useAuth } from './AuthContext';
 import type {
   Broadcast,
@@ -33,6 +42,12 @@ interface KafelaContextType {
   canSendBroadcast: boolean;
   /** Increments when a live snapshot is applied; detail pages can reload local status. */
   liveRevision: number;
+  /** ISO timestamp of last successful (or cached) snapshot. */
+  lastUpdatedAt: string | null;
+  /** True when showing cached data after a network failure. */
+  isOffline: boolean;
+  outbox: KafelaOutboxItem[];
+  pendingCount: number;
   refresh: () => Promise<void>;
   refreshMembers: (q?: string) => Promise<void>;
   refreshBroadcasts: () => Promise<void>;
@@ -40,6 +55,14 @@ interface KafelaContextType {
   refreshRollCalls: () => Promise<void>;
   setLocalMe: (me: KafelaMember) => void;
   setLocalKafela: (k: KafelaSummary) => void;
+  queueBroadcastAck: (broadcastId: string) => Promise<void>;
+  queueRollCallMark: (input: {
+    rollCallId: string;
+    subjectType: 'member' | 'companion';
+    memberId?: string | null;
+    companionId?: string | null;
+    present: boolean;
+  }) => Promise<void>;
   clear: () => void;
 }
 
@@ -61,6 +84,9 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sosEvents, setSosEvents] = useState<SosEvent[]>([]);
   const [rollCalls, setRollCalls] = useState<RollCall[]>([]);
   const [liveRevision, setLiveRevision] = useState(0);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [outbox, setOutbox] = useState<KafelaOutboxItem[]>([]);
 
   const kafelaIdRef = useRef<string | null>(null);
   const snapshotInFlight = useRef<Promise<void> | null>(null);
@@ -75,19 +101,14 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSosEvents([]);
     setRollCalls([]);
     setError(null);
+    setLastUpdatedAt(null);
+    setIsOffline(false);
     kafelaIdRef.current = null;
+    void clearCachedKafelaSnapshot();
   }, []);
 
   const applySnapshot = useCallback(
-    (snap: {
-      kafela: KafelaSummary;
-      me: KafelaMember;
-      members: KafelaMember[];
-      groups: KafelaGroupSummary[];
-      broadcasts: Broadcast[];
-      sosEvents: SosEvent[];
-      rollCalls: RollCall[];
-    }) => {
+    (snap: KafelaSnapshot, meta?: { cachedAt?: string; offline?: boolean }) => {
       setKafela(snap.kafela);
       setMe(snap.me);
       setMembers(snap.members);
@@ -96,61 +117,103 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSosEvents(snap.sosEvents);
       setRollCalls(snap.rollCalls);
       kafelaIdRef.current = snap.kafela.id;
+      setLastUpdatedAt(meta?.cachedAt ?? new Date().toISOString());
+      setIsOffline(Boolean(meta?.offline));
       setLiveRevision((n) => n + 1);
     },
     []
   );
 
+  const reloadOutbox = useCallback(async () => {
+    setOutbox(await readOutbox());
+  }, []);
+
+  const tryFlushOutbox = useCallback(async () => {
+    const result = await flushOutbox();
+    setOutbox(result.remaining);
+    return result;
+  }, []);
+
   const refreshMembers = useCallback(
     async (q?: string) => {
       if (!kafela) return;
-      const list = await kafelaApi.listMembers(kafela.id, q);
-      setMembers(list);
+      try {
+        const list = await kafelaApi.listMembers(kafela.id, q);
+        setMembers(list);
+        setIsOffline(false);
+      } catch {
+        /* keep cached roster */
+      }
     },
     [kafela]
   );
 
   const refreshBroadcasts = useCallback(async () => {
     if (!kafela) return;
-    setBroadcasts(await kafelaApi.listBroadcasts(kafela.id));
+    try {
+      setBroadcasts(await kafelaApi.listBroadcasts(kafela.id));
+      setIsOffline(false);
+    } catch {
+      /* keep cached */
+    }
   }, [kafela]);
 
   const refreshSos = useCallback(async () => {
     if (!kafela) return;
-    setSosEvents(await kafelaApi.listSos(kafela.id, true));
+    try {
+      setSosEvents(await kafelaApi.listSos(kafela.id, true));
+      setIsOffline(false);
+    } catch {
+      /* keep cached */
+    }
   }, [kafela]);
 
   const refreshRollCalls = useCallback(async () => {
     if (!kafela) return;
-    setRollCalls(await kafelaApi.listRollCalls(kafela.id));
+    try {
+      setRollCalls(await kafelaApi.listRollCalls(kafela.id));
+      setIsOffline(false);
+    } catch {
+      /* keep cached */
+    }
   }, [kafela]);
 
-  const loadSnapshotSilent = useCallback(async (kafelaId: string) => {
-    if (snapshotInFlight.current) {
-      snapshotQueued.current = true;
-      await snapshotInFlight.current;
-      return;
-    }
-    const run = (async () => {
-      try {
-        do {
-          snapshotQueued.current = false;
-          const snap = await kafelaApi.getSnapshot(kafelaId);
-          applySnapshot(snap);
-          setError(null);
-        } while (snapshotQueued.current);
-      } catch (e: unknown) {
-        const err = e as { response?: { status?: number }; message?: string };
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          clear();
-        }
-      } finally {
-        snapshotInFlight.current = null;
+  const loadSnapshotSilent = useCallback(
+    async (kafelaId: string) => {
+      if (snapshotInFlight.current) {
+        snapshotQueued.current = true;
+        await snapshotInFlight.current;
+        return;
       }
-    })();
-    snapshotInFlight.current = run;
-    await run;
-  }, [applySnapshot, clear]);
+      const run = (async () => {
+        try {
+          do {
+            snapshotQueued.current = false;
+            await tryFlushOutbox();
+            const snap = await kafelaApi.getSnapshot(kafelaId);
+            applySnapshot(snap, { offline: false });
+            await cacheKafelaSnapshot(snap);
+            setError(null);
+          } while (snapshotQueued.current);
+        } catch (e: unknown) {
+          const err = e as { response?: { status?: number }; message?: string };
+          if (err.response?.status === 401 || err.response?.status === 403) {
+            clear();
+            return;
+          }
+          const cached = await readCachedKafelaSnapshot();
+          if (cached && cached.kafela.id === kafelaId) {
+            applySnapshot(cached, { cachedAt: cached.cachedAt, offline: true });
+          }
+        } finally {
+          snapshotInFlight.current = null;
+        }
+      })();
+      snapshotInFlight.current = run;
+      await run;
+    },
+    [applySnapshot, clear, tryFlushOutbox]
+  );
 
   const refresh = useCallback(async () => {
     if (authLoading) return;
@@ -161,7 +224,9 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     setLoading(true);
     setError(null);
+    await reloadOutbox();
     try {
+      await tryFlushOutbox();
       const mine = await kafelaApi.getMine();
       if (!mine) {
         clear();
@@ -171,22 +236,108 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setMe(mine.me);
       kafelaIdRef.current = mine.kafela.id;
       const snap = await kafelaApi.getSnapshot(mine.kafela.id);
-      applySnapshot(snap);
+      applySnapshot(snap, { offline: false });
+      await cacheKafelaSnapshot(snap);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string }; status?: number }; message?: string };
-      // Keep existing state on transient errors; only clear on hard auth failures
+      const err = e as {
+        response?: { data?: { error?: string }; status?: number };
+        message?: string;
+      };
       if (err.response?.status === 401) {
         clear();
+        setError(err.response?.data?.error || err.message || 'Failed to load kafela');
+        return;
       }
-      setError(err.response?.data?.error || err.message || 'Failed to load kafela');
+      const cached = await readCachedKafelaSnapshot();
+      if (cached) {
+        applySnapshot(cached, { cachedAt: cached.cachedAt, offline: true });
+        setError(null);
+      } else {
+        setError(err.response?.data?.error || err.message || 'Failed to load kafela');
+      }
     } finally {
       setLoading(false);
+      await reloadOutbox();
     }
-  }, [authLoading, isAuthenticated, clear, applySnapshot]);
+  }, [authLoading, isAuthenticated, clear, applySnapshot, reloadOutbox, tryFlushOutbox]);
+
+  const queueBroadcastAck = useCallback(
+    async (broadcastId: string) => {
+      if (!kafela) return;
+      try {
+        await kafelaApi.ackBroadcast(kafela.id, broadcastId);
+        setBroadcasts((prev) =>
+          prev.map((b) => (b.id === broadcastId ? { ...b, seenByMe: true } : b))
+        );
+        setIsOffline(false);
+      } catch {
+        const items = await enqueueOutbox({
+          type: 'broadcast_ack',
+          kafelaId: kafela.id,
+          broadcastId,
+        });
+        setOutbox(items);
+        setBroadcasts((prev) =>
+          prev.map((b) => (b.id === broadcastId ? { ...b, seenByMe: true } : b))
+        );
+        setIsOffline(true);
+      }
+    },
+    [kafela]
+  );
+
+  const queueRollCallMark = useCallback(
+    async (input: {
+      rollCallId: string;
+      subjectType: 'member' | 'companion';
+      memberId?: string | null;
+      companionId?: string | null;
+      present: boolean;
+    }) => {
+      if (!kafela) return;
+      try {
+        await kafelaApi.respondRollCall(kafela.id, input.rollCallId, {
+          present: input.present,
+          subjectType: input.subjectType,
+          memberId: input.memberId,
+          companionId: input.companionId,
+        });
+        setIsOffline(false);
+      } catch {
+        const items = await enqueueOutbox({
+          type: 'roll_call_mark',
+          kafelaId: kafela.id,
+          rollCallId: input.rollCallId,
+          subjectType: input.subjectType,
+          memberId: input.memberId,
+          companionId: input.companionId,
+          present: input.present,
+        });
+        setOutbox(items);
+        setIsOffline(true);
+      }
+    },
+    [kafela]
+  );
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void reloadOutbox();
+  }, [reloadOutbox]);
+
+  useEffect(() => {
+    const onOnline = () => {
+      void (async () => {
+        await tryFlushOutbox();
+        if (kafelaIdRef.current) await loadSnapshotSilent(kafelaIdRef.current);
+      })();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [loadSnapshotSilent, tryFlushOutbox]);
 
   // Live SSE + visibility reconnect + slow fallback poll
   useEffect(() => {
@@ -234,7 +385,6 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           },
           abortController.signal
         );
-        // Stream ended cleanly — reconnect
         if (!aborted && !document.hidden) scheduleReconnect();
       } catch (e: unknown) {
         const err = e as { name?: string };
@@ -281,6 +431,10 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isAdmin: me ? isKafelaAdmin(me.role) : false,
       canSendBroadcast: me ? canBroadcast(me.role) : false,
       liveRevision,
+      lastUpdatedAt,
+      isOffline,
+      outbox,
+      pendingCount: outbox.length,
       refresh,
       refreshMembers,
       refreshBroadcasts,
@@ -288,6 +442,8 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       refreshRollCalls,
       setLocalMe: setMe,
       setLocalKafela: setKafela,
+      queueBroadcastAck,
+      queueRollCallMark,
       clear,
     }),
     [
@@ -301,11 +457,16 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       sosEvents,
       rollCalls,
       liveRevision,
+      lastUpdatedAt,
+      isOffline,
+      outbox,
       refresh,
       refreshMembers,
       refreshBroadcasts,
       refreshSos,
       refreshRollCalls,
+      queueBroadcastAck,
+      queueRollCallMark,
       clear,
     ]
   );

@@ -264,6 +264,13 @@ enum BroadcastPriority {
   urgent
 }
 
+enum KafelaCompanionRelation {
+  spouse
+  parent
+  child
+  other
+}
+
 model Kafela {
   id          String    @id @default(cuid())
   name        String
@@ -306,19 +313,38 @@ model KafelaMember {
   kafela             Kafela             @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
   group              KafelaGroup?       @relation("GroupMembers", fields: [groupId], references: [id], onDelete: SetNull)
   adminOfGroup       KafelaGroup?       @relation("GroupAdmin")
-  location           MemberLocation?
-  broadcastsAuthored Broadcast[]        @relation("BroadcastAuthor")
-  broadcastAcks      BroadcastAck[]
-  sosEvents          SosEvent[]         @relation("SosMember")
-  sosResolved        SosEvent[]         @relation("SosResolver")
-  rollCallsAuthored  RollCall[]         @relation("RollCallAuthor")
-  rollCallResponses  RollCallResponse[]
+  location                  MemberLocation?
+  broadcastsAuthored        Broadcast[]                @relation("BroadcastAuthor")
+  broadcastAcks             BroadcastAck[]
+  sosEvents                 SosEvent[]                 @relation("SosMember")
+  sosResolved               SosEvent[]                 @relation("SosResolver")
+  rollCallsAuthored         RollCall[]                 @relation("RollCallAuthor")
+  rollCallResponses         RollCallResponse[]         @relation("RollCallSubject")
+  rollCallMarks             RollCallResponse[]         @relation("RollCallMarker")
+  companions                KafelaCompanion[]
+  companionRollCallMarks    RollCallCompanionResponse[] @relation("CompanionRollCallMarker")
 
   @@unique([userId, kafelaId])
   @@index([kafelaId, status])
   @@index([groupId])
   @@index([userId, status])
   @@map("kafela_members")
+}
+
+model KafelaCompanion {
+  id           String                   @id @default(cuid())
+  memberId     String                   @map("member_id")
+  name         String
+  relation     KafelaCompanionRelation  @default(other)
+  note         String?
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  updatedAt    DateTime                 @updatedAt @map("updated_at")
+
+  member            KafelaMember                 @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  rollCallResponses RollCallCompanionResponse[]
+
+  @@index([memberId])
+  @@map("kafela_companions")
 }
 
 model KafelaGroup {
@@ -420,10 +446,11 @@ model RollCall {
   createdAt DateTime @default(now()) @map("created_at")
   closedAt  DateTime? @map("closed_at")
 
-  kafela    Kafela             @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
-  group     KafelaGroup?       @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  author    KafelaMember       @relation("RollCallAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  responses RollCallResponse[]
+  kafela             Kafela                      @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  group              KafelaGroup?                @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author             KafelaMember                @relation("RollCallAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  responses          RollCallResponse[]
+  companionResponses RollCallCompanionResponse[]
 
   @@index([kafelaId, createdAt])
   @@map("roll_calls")
@@ -434,14 +461,35 @@ model RollCallResponse {
   rollCallId  String   @map("roll_call_id")
   memberId    String   @map("member_id")
   present     Boolean  @default(true)
+  markedById  String?  @map("marked_by_id")
   respondedAt DateTime @default(now()) @map("responded_at")
 
-  rollCall RollCall     @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
-  member   KafelaMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  rollCall RollCall      @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
+  member   KafelaMember  @relation("RollCallSubject", fields: [memberId], references: [id], onDelete: Cascade)
+  markedBy KafelaMember? @relation("RollCallMarker", fields: [markedById], references: [id], onDelete: SetNull)
 
   @@unique([rollCallId, memberId])
   @@index([memberId])
+  @@index([markedById])
   @@map("roll_call_responses")
+}
+
+model RollCallCompanionResponse {
+  id           String   @id @default(cuid())
+  rollCallId   String   @map("roll_call_id")
+  companionId  String   @map("companion_id")
+  present      Boolean  @default(true)
+  markedById   String?  @map("marked_by_id")
+  respondedAt  DateTime @default(now()) @map("responded_at")
+
+  rollCall  RollCall         @relation(fields: [rollCallId], references: [id], onDelete: Cascade)
+  companion KafelaCompanion  @relation(fields: [companionId], references: [id], onDelete: Cascade)
+  markedBy  KafelaMember?    @relation("CompanionRollCallMarker", fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([rollCallId, companionId])
+  @@index([companionId])
+  @@index([markedById])
+  @@map("roll_call_companion_responses")
 }
 
 // ─── Prayer times (per location/date) ─────────────────────────────────────────

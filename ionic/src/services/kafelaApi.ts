@@ -2,6 +2,8 @@ import api from './api';
 import { storageService } from './storage';
 import type {
   Broadcast,
+  KafelaCompanion,
+  KafelaCompanionRelation,
   KafelaMember,
   KafelaMemberRole,
   KafelaGroupSummary,
@@ -80,6 +82,34 @@ export const kafelaApi = {
     }
   ) => api.patch(`/kafelas/${kafelaId}/me`, body).then((r) => unwrap<KafelaMember>(r)),
 
+  listCompanions: (kafelaId: string, memberId: string) =>
+    api
+      .get(`/kafelas/${kafelaId}/members/${memberId}/companions`)
+      .then((r) => unwrap<KafelaCompanion[]>(r)),
+
+  createCompanion: (
+    kafelaId: string,
+    memberId: string,
+    body: { name: string; relation?: KafelaCompanionRelation; note?: string | null }
+  ) =>
+    api
+      .post(`/kafelas/${kafelaId}/members/${memberId}/companions`, body)
+      .then((r) => unwrap<KafelaCompanion>(r)),
+
+  updateCompanion: (
+    kafelaId: string,
+    companionId: string,
+    body: { name?: string; relation?: KafelaCompanionRelation; note?: string | null }
+  ) =>
+    api
+      .patch(`/kafelas/${kafelaId}/companions/${companionId}`, body)
+      .then((r) => unwrap<KafelaCompanion>(r)),
+
+  deleteCompanion: (kafelaId: string, companionId: string) =>
+    api
+      .delete(`/kafelas/${kafelaId}/companions/${companionId}`)
+      .then((r) => unwrap<{ deleted: boolean }>(r)),
+
   listGroups: (kafelaId: string) =>
     api.get(`/kafelas/${kafelaId}/groups`).then((r) => unwrap<KafelaGroupSummary[]>(r)),
 
@@ -156,6 +186,9 @@ export const kafelaApi = {
         Array<{
           memberId: string;
           displayName: string;
+          householdSize?: number;
+          confirmedFor?: number;
+          label?: string;
           seen: boolean;
           seenAt: string | null;
         }>
@@ -169,7 +202,12 @@ export const kafelaApi = {
 
   createSos: (
     kafelaId: string,
-    body?: { latitude?: number | null; longitude?: number | null; note?: string | null }
+    body?: {
+      latitude?: number | null;
+      longitude?: number | null;
+      note?: string | null;
+      companionId?: string | null;
+    }
   ) => api.post(`/kafelas/${kafelaId}/sos`, body ?? {}).then((r) => unwrap<SosEvent>(r)),
 
   resolveSos: (kafelaId: string, sosId: string) =>
@@ -184,10 +222,39 @@ export const kafelaApi = {
   getRollCall: (kafelaId: string, rollCallId: string) =>
     api.get(`/kafelas/${kafelaId}/roll-calls/${rollCallId}`).then((r) => unwrap(r)),
 
-  respondRollCall: (kafelaId: string, rollCallId: string, present = true) =>
-    api
-      .post(`/kafelas/${kafelaId}/roll-calls/${rollCallId}/respond`, { present })
-      .then((r) => unwrap<{ responded: boolean; present: boolean }>(r)),
+  respondRollCall: (
+    kafelaId: string,
+    rollCallId: string,
+    body:
+      | boolean
+      | {
+          present?: boolean;
+          subjectType?: 'member' | 'companion';
+          memberId?: string | null;
+          companionId?: string | null;
+        } = true
+  ) => {
+    const payload =
+      typeof body === 'boolean'
+        ? { present: body, subjectType: 'member' as const }
+        : {
+            present: body.present !== false,
+            subjectType: body.subjectType ?? (body.companionId ? 'companion' : 'member'),
+            memberId: body.memberId,
+            companionId: body.companionId,
+          };
+    return api
+      .post(`/kafelas/${kafelaId}/roll-calls/${rollCallId}/respond`, payload)
+      .then((r) =>
+        unwrap<{
+          responded: boolean;
+          present: boolean;
+          subjectType: 'member' | 'companion';
+          memberId: string;
+          companionId: string | null;
+        }>(r)
+      );
+  },
 
   closeRollCall: (kafelaId: string, rollCallId: string) =>
     api

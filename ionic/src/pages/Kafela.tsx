@@ -8,6 +8,8 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonAlert,
+  IonSelect,
+  IonSelectOption,
 } from '@ionic/react';
 import { useIonRouter } from '@ionic/react';
 import {
@@ -24,6 +26,7 @@ import {
   LogOut,
   Copy,
   Check,
+  Trash2,
 } from 'lucide-react';
 import AppHeader from '../components/AppHeader';
 import InscribedField from '../components/InscribedField';
@@ -31,8 +34,17 @@ import { useKafela } from '../contexts/KafelaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { kafelaApi } from '../services/kafelaApi';
 import { useKafelaLocationSharing } from '../hooks/useKafelaLocationSharing';
-import { memberLabel } from '../types/kafela';
+import {
+  COMPANION_RELATION_LABELS,
+  householdLabel,
+  householdSize,
+  memberLabel,
+  type KafelaCompanionRelation,
+  type KafelaMember,
+} from '../types/kafela';
 import { Geolocation } from '@capacitor/geolocation';
+
+const MAX_COMPANIONS = 3;
 
 const KafelaPage: React.FC = () => {
   const router = useIonRouter();
@@ -52,6 +64,10 @@ const KafelaPage: React.FC = () => {
     refresh,
     setLocalMe,
     setLocalKafela,
+    isOffline,
+    lastUpdatedAt,
+    pendingCount,
+    queueBroadcastAck,
   } = useKafela();
 
   const [mode, setMode] = useState<'join' | 'create'>('join');
@@ -65,6 +81,13 @@ const KafelaPage: React.FC = () => {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [sosNote, setSosNote] = useState('');
   const [sosOpen, setSosOpen] = useState(false);
+  const [sosCompanionId, setSosCompanionId] = useState<string>('');
+  const [sosError, setSosError] = useState<string | null>(null);
+  const [companionName, setCompanionName] = useState('');
+  const [companionRelation, setCompanionRelation] = useState<KafelaCompanionRelation>('spouse');
+  const [householdTargetId, setHouseholdTargetId] = useState<string | null>(null);
+  const [householdBusy, setHouseholdBusy] = useState(false);
+  const [householdError, setHouseholdError] = useState<string | null>(null);
 
   useKafelaLocationSharing(kafela?.id, Boolean(me?.sharingEnabled));
 
@@ -72,7 +95,7 @@ const KafelaPage: React.FC = () => {
     const q = search.trim().toLowerCase();
     if (!q) return members;
     return members.filter((m) => {
-      const label = memberLabel(m).toLowerCase();
+      const label = householdLabel(m).toLowerCase();
       return (
         label.includes(q) ||
         (m.phone || '').includes(q) ||
@@ -83,6 +106,15 @@ const KafelaPage: React.FC = () => {
   }, [members, search]);
 
   const ungroupedCount = members.filter((m) => !m.groupId).length;
+  const householdTarget: KafelaMember | null = useMemo(() => {
+    if (!me) return null;
+    const id = householdTargetId || me.id;
+    return members.find((m) => m.id === id) || me;
+  }, [householdTargetId, me, members]);
+  const myCompanions = me?.companions ?? [];
+  const editingCompanions = householdTarget?.companions ?? [];
+  const canEditHousehold =
+    !!householdTarget && (householdTarget.id === me?.id || isAdmin);
 
   const handleCreate = async () => {
     setBusy(true);
@@ -176,6 +208,7 @@ const KafelaPage: React.FC = () => {
   const sendSos = async (note?: string) => {
     if (!kafela) return;
     setBusy(true);
+    setSosError(null);
     try {
       let latitude: number | undefined;
       let longitude: number | undefined;
@@ -190,14 +223,51 @@ const KafelaPage: React.FC = () => {
         latitude,
         longitude,
         note: (note ?? sosNote).trim() || 'I need help',
+        companionId: sosCompanionId || null,
       });
       setSosNote('');
+      setSosCompanionId('');
       setSosOpen(false);
       await refresh();
-    } catch {
-      /* ignore */
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      setSosError(err.response?.data?.error || err.message || 'SOS was not sent. Try again.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const addCompanion = async () => {
+    if (!kafela || !householdTarget || !companionName.trim()) return;
+    setHouseholdBusy(true);
+    setHouseholdError(null);
+    try {
+      await kafelaApi.createCompanion(kafela.id, householdTarget.id, {
+        name: companionName.trim(),
+        relation: companionRelation,
+      });
+      setCompanionName('');
+      await refresh();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      setHouseholdError(err.response?.data?.error || err.message || 'Could not add companion');
+    } finally {
+      setHouseholdBusy(false);
+    }
+  };
+
+  const removeCompanion = async (companionId: string) => {
+    if (!kafela) return;
+    setHouseholdBusy(true);
+    setHouseholdError(null);
+    try {
+      await kafelaApi.deleteCompanion(kafela.id, companionId);
+      await refresh();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } }; message?: string };
+      setHouseholdError(err.response?.data?.error || err.message || 'Could not remove companion');
+    } finally {
+      setHouseholdBusy(false);
     }
   };
 
@@ -345,12 +415,33 @@ const KafelaPage: React.FC = () => {
                   {kafela.name}
                 </h1>
                 <p className="mt-1 text-sm text-stitch-on-variant">
-                  {kafela._count?.members ?? members.length} members · {groups.length} groups
+                  {kafela.headcount ??
+                    members.reduce((n, m) => n + householdSize(m), 0)}{' '}
+                  people · {kafela._count?.members ?? members.length} phones · {groups.length}{' '}
+                  groups
                   {ungroupedCount > 0 ? ` · ${ungroupedCount} ungrouped` : ''}
                 </p>
               </div>
               <Users className="h-8 w-8 shrink-0 text-stitch-primary/40" />
             </div>
+
+            {(isOffline || pendingCount > 0) && (
+              <div className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {isOffline
+                  ? 'Showing last saved kafela data. Changes will sync when you are online.'
+                  : 'Connection restored; waiting items will sync shortly.'}
+                {lastUpdatedAt && (
+                  <span className="mt-1 block text-xs text-amber-800/80">
+                    Last updated {new Date(lastUpdatedAt).toLocaleString()}
+                  </span>
+                )}
+                {pendingCount > 0 && (
+                  <span className="mt-1 block text-xs font-semibold">
+                    {pendingCount} waiting to sync
+                  </span>
+                )}
+              </div>
+            )}
 
             {isAdmin && (
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-stitch-surface-low px-4 py-3">
@@ -384,6 +475,108 @@ const KafelaPage: React.FC = () => {
               />
             </label>
           </div>
+
+          <section className="mt-4 rounded-[24px] bg-white p-4 shadow-ambient">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-stitch-primary">My household</h2>
+                <p className="mt-1 text-xs text-stitch-on-variant">
+                  Add family without the app (up to {MAX_COMPANIONS} companions on this phone).
+                </p>
+              </div>
+              <span className="rounded-full bg-stitch-surface-low px-2 py-1 text-xs font-bold text-stitch-primary">
+                {householdSize(me)}/4
+              </span>
+            </div>
+
+            {isAdmin && (
+              <IonSelect
+                className="mt-3"
+                interface="popover"
+                value={householdTarget?.id ?? me.id}
+                onIonChange={(e) => setHouseholdTargetId(String(e.detail.value ?? me.id))}
+              >
+                {members.map((m) => (
+                  <IonSelectOption key={m.id} value={m.id}>
+                    {memberLabel(m)}
+                    {m.id === me.id ? ' (you)' : ''} · {householdSize(m)} people
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+            )}
+
+            <ul className="mt-3 space-y-2">
+              <li className="rounded-xl bg-stitch-surface-low px-3 py-2 text-sm font-semibold">
+                {memberLabel(householdTarget || me)} · phone holder
+              </li>
+              {editingCompanions.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-2 rounded-xl bg-stitch-surface-low px-3 py-2 text-sm"
+                >
+                  <span>
+                    <span className="font-semibold">{c.name}</span>
+                    <span className="text-stitch-on-variant">
+                      {' '}
+                      · {COMPANION_RELATION_LABELS[c.relation]}
+                    </span>
+                  </span>
+                  {canEditHousehold && (
+                    <button
+                      type="button"
+                      className="rounded-full p-1.5 text-red-700"
+                      aria-label={`Remove ${c.name}`}
+                      disabled={householdBusy}
+                      onClick={() => void removeCompanion(c.id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {canEditHousehold && editingCompanions.length < MAX_COMPANIONS && (
+              <div className="mt-3 space-y-2">
+                <InscribedField
+                  id="companion-name"
+                  label="Companion name"
+                  value={companionName}
+                  onChange={setCompanionName}
+                  placeholder="e.g. Amina"
+                />
+                <IonSelect
+                  interface="popover"
+                  value={companionRelation}
+                  onIonChange={(e) =>
+                    setCompanionRelation(
+                      (e.detail.value as KafelaCompanionRelation) || 'other'
+                    )
+                  }
+                >
+                  {(Object.keys(COMPANION_RELATION_LABELS) as KafelaCompanionRelation[]).map(
+                    (key) => (
+                      <IonSelectOption key={key} value={key}>
+                        {COMPANION_RELATION_LABELS[key]}
+                      </IonSelectOption>
+                    )
+                  )}
+                </IonSelect>
+                {householdError && (
+                  <p className="text-sm font-medium text-red-700">{householdError}</p>
+                )}
+                <button
+                  type="button"
+                  disabled={householdBusy || !companionName.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-stitch-primary py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                  onClick={() => void addCompanion()}
+                >
+                  {householdBusy ? <IonSpinner name="crescent" /> : <Plus size={16} />}
+                  Add to household
+                </button>
+              </div>
+            )}
+          </section>
 
           {/* Quick actions */}
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -465,11 +658,12 @@ const KafelaPage: React.FC = () => {
                 <button
                   type="button"
                   className="mt-3 rounded-xl bg-stitch-primary px-3 py-2 text-xs font-bold text-white"
-                  onClick={() =>
-                    void kafelaApi.ackBroadcast(kafela.id, broadcasts[0].id).then(() => refresh())
-                  }
+                  onClick={() => void queueBroadcastAck(broadcasts[0].id)}
                 >
                   Mark as seen
+                  {myCompanions.length > 0
+                    ? ` (for ${householdSize(me)})`
+                    : ''}
                 </button>
               )}
             </section>
@@ -523,8 +717,14 @@ const KafelaPage: React.FC = () => {
                           : 'Member'}
                       {m.group ? ` · ${m.group.name}` : ' · Ungrouped'}
                       {m.tentOrRoom ? ` · ${m.tentOrRoom}` : ''}
+                      {householdSize(m) > 1 ? ` · household ${householdSize(m)}` : ''}
                       {!m.sharingEnabled ? ' · sharing off' : ''}
                     </p>
+                    {(m.companions?.length ?? 0) > 0 && (
+                      <p className="truncate text-xs text-stitch-on-variant">
+                        With {m.companions!.map((c) => c.name).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {(m.phone || m.user.phone) && (
@@ -577,33 +777,65 @@ const KafelaPage: React.FC = () => {
           onDidDismiss={() => setLeaveOpen(false)}
         />
 
-        <IonAlert
-          isOpen={sosOpen}
-          header="Send SOS"
-          message="Your group admin and kafela leaders will be notified with your location."
-          inputs={[
-            {
-              name: 'note',
-              type: 'textarea',
-              placeholder: 'Optional note (e.g. near Jamarat)',
-              value: sosNote,
-              attributes: { maxlength: 200 },
-            },
-          ]}
-          buttons={[
-            { text: 'Cancel', role: 'cancel' },
-            {
-              text: busy ? 'Sending…' : 'Send SOS',
-              role: 'destructive',
-              handler: (data) => {
-                const note = String(data?.note ?? '');
-                setSosNote(note);
-                void sendSos(note);
-              },
-            },
-          ]}
-          onDidDismiss={() => setSosOpen(false)}
-        />
+        {sosOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+            <div className="w-full max-w-md rounded-[24px] bg-white p-5 shadow-ambient">
+              <h2 className="text-lg font-extrabold text-red-800">Send SOS</h2>
+              <p className="mt-1 text-sm text-stitch-on-variant">
+                Leaders get this phone’s location. Choose who needs help.
+              </p>
+              <label className="mt-4 block text-xs font-semibold text-stitch-primary/60">
+                Who needs help
+              </label>
+              <IonSelect
+                interface="popover"
+                className="mt-1 w-full rounded-xl bg-stitch-surface-low px-2"
+                value={sosCompanionId}
+                onIonChange={(e) => setSosCompanionId(String(e.detail.value ?? ''))}
+              >
+                <IonSelectOption value="">Me ({memberLabel(me)})</IonSelectOption>
+                {myCompanions.map((c) => (
+                  <IonSelectOption key={c.id} value={c.id}>
+                    {c.name}
+                  </IonSelectOption>
+                ))}
+              </IonSelect>
+              <div className="mt-3">
+                <InscribedField
+                  id="sos-note"
+                  label="Note (optional)"
+                  value={sosNote}
+                  onChange={setSosNote}
+                  placeholder="e.g. near Jamarat"
+                />
+              </div>
+              {sosError && (
+                <p className="mt-3 text-sm font-medium text-red-700">{sosError}</p>
+              )}
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  className="flex-1 rounded-2xl bg-stitch-surface-low py-3 text-sm font-bold text-stitch-primary"
+                  disabled={busy}
+                  onClick={() => {
+                    setSosOpen(false);
+                    setSosError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-2xl bg-red-700 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => void sendSos()}
+                >
+                  {busy ? <IonSpinner name="crescent" /> : sosError ? 'Retry SOS' : 'Send SOS'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </IonContent>
     </IonPage>
   );
