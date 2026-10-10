@@ -25,3 +25,5 @@ prisma/seed.d.ts.map
 # Firebase
 *-firebase-adminsdk-*.json
 serviceAccountKey.json
+.vercel
+.env*.local
