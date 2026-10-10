@@ -18,7 +18,7 @@ function unwrap<T>(response: { data: { success?: boolean; data: T } }): T {
   return response.data.data;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hajjbro-production.up.railway.app/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.hajjbro.com/api/v1';
 
 export type KafelaSnapshot = {
   kafela: KafelaSummary;

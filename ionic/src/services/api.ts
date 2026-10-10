@@ -10,7 +10,7 @@ import {
 import { storageService } from './storage';
 import type { User } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hajjbro-production.up.railway.app/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.hajjbro.com/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
