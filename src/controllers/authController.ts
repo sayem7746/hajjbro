@@ -53,14 +53,44 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
     if (!req.user) {
       throw new AppError(401, 'Not authenticated');
     }
-    res.json({
-      success: true,
-      data: {
-        id: req.user.sub,
-        email: req.user.email,
-        role: req.user.role,
-      },
-    });
+    const profile = await authService.getProfile(req.user.sub);
+    res.json({ success: true, data: profile });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) throw new AppError(401, 'Not authenticated');
+    const { name, phone } = req.body ?? {};
+    if (name === undefined && phone === undefined) {
+      throw new AppError(400, 'Provide name and/or phone to update');
+    }
+    const profile = await authService.updateProfile(req.user.sub, { name, phone });
+    res.json({ success: true, data: profile });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) throw new AppError(401, 'Not authenticated');
+    const { currentPassword, newPassword } = req.body ?? {};
+    await authService.changePassword(req.user.sub, currentPassword, newPassword);
+    res.json({ success: true, message: 'Password updated. Please sign in again.' });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function deleteMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) throw new AppError(401, 'Not authenticated');
+    const { password } = req.body ?? {};
+    await authService.deleteAccount(req.user.sub, password);
+    res.json({ success: true, message: 'Account deleted' });
   } catch (e) {
     next(e);
   }

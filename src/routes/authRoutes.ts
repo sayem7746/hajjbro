@@ -13,6 +13,9 @@ router.post('/logout', authRateLimiter, authController.logout);
 
 // Protected (all require valid JWT)
 router.get('/me', authMiddleware, authController.me);
+router.patch('/me', authMiddleware, authController.updateMe);
+router.patch('/password', authMiddleware, authController.changePassword);
+router.delete('/me', authMiddleware, authController.deleteMe);
 router.patch('/fcm-token', authMiddleware, authController.updateFcmToken);
 
 // Admin-only example (use requireRole after authMiddleware for role-gated routes)

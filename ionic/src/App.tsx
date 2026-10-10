@@ -5,6 +5,7 @@ import { IonReactRouter } from '@ionic/react-router';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 import { KafelaProvider } from './contexts/KafelaContext';
+import BiometricLockGate from './components/BiometricLockGate';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -30,20 +31,22 @@ setupIonicReact();
 const App: React.FC = () => (
   <IonApp className="hajj-sanctuary-app">
     <AuthProvider>
-      <ProgressProvider>
-        <KafelaProvider>
-          <IonReactRouter>
-            <IonRouterOutlet>
-              <Route exact path="/login" component={Login} />
-              <Route exact path="/register" component={Register} />
-              <Route path="/app" component={AppTabs} />
-              <Route exact path="/">
-                <Redirect to="/login" />
-              </Route>
-            </IonRouterOutlet>
-          </IonReactRouter>
-        </KafelaProvider>
-      </ProgressProvider>
+      <BiometricLockGate>
+        <ProgressProvider>
+          <KafelaProvider>
+            <IonReactRouter>
+              <IonRouterOutlet>
+                <Route exact path="/login" component={Login} />
+                <Route exact path="/register" component={Register} />
+                <Route path="/app" component={AppTabs} />
+                <Route exact path="/">
+                  <Redirect to="/login" />
+                </Route>
+              </IonRouterOutlet>
+            </IonReactRouter>
+          </KafelaProvider>
+        </ProgressProvider>
+      </BiometricLockGate>
     </AuthProvider>
   </IonApp>
 );

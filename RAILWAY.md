@@ -23,8 +23,8 @@ Set these in the Railway dashboard (**Project → Variables**) or via CLI:
 | `CORS_ORIGINS`      | `*`       | Allowed origins (comma-separated)    |
 | `RATE_LIMIT_MAX`    | `100`     | API requests per 15 min per IP       |
 | `RATE_LIMIT_AUTH_MAX` | `10`   | Auth attempts per 15 min per IP      |
-| `JWT_EXPIRES_IN`    | `15m`     | Access token expiry                  |
-| `JWT_REFRESH_EXPIRES_IN` | `7d` | Refresh token expiry                 |
+| `JWT_EXPIRES_IN`    | `15m`     | Access token expiry (short-lived)    |
+| `JWT_REFRESH_EXPIRES_IN` | `90d` | Sliding refresh token inactivity window |
 | `LOG_LEVEL`         | `info`    | Logging level                        |
 
 ## Set via CLI

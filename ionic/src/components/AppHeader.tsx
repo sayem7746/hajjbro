@@ -29,7 +29,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? 'G';
 
   const onProfile = () => {
-    router.push('/app/progress', 'forward', 'push');
+    router.push('/app/settings', 'forward', 'push');
   };
 
   return (
@@ -58,7 +58,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             fill="clear"
             className="min-h-touch min-w-touch"
             onClick={onProfile}
-            aria-label="Open journey and progress"
+            aria-label="Open settings"
           >
             <IonAvatar className="h-9 w-9 border border-border-soft bg-surface text-sm font-semibold text-brand">
               {initial}

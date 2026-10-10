@@ -57,7 +57,7 @@ async function issueTokens(user: {
     expiresIn: expiresIn as jwt.SignOptions['expiresIn'],
   });
 
-  const refreshExpiresIn = env.JWT_REFRESH_EXPIRES_IN ?? '7d';
+  const refreshExpiresIn = env.JWT_REFRESH_EXPIRES_IN ?? '90d';
   const refreshTokenRaw = generateRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshTokenRaw);
   const refreshSeconds = parseExpiryToSeconds(refreshExpiresIn);
@@ -191,5 +191,133 @@ export async function updateFcmToken(userId: string, fcmToken: string | null): P
   await prisma.user.update({
     where: { id: userId },
     data: { fcmToken },
+  });
+}
+
+const profileSelect = {
+  id: true,
+  email: true,
+  name: true,
+  phone: true,
+  role: true,
+  locale: true,
+} as const;
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  role: UserRole;
+  locale: string | null;
+};
+
+export async function getProfile(userId: string): Promise<UserProfile> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: profileSelect,
+  });
+  if (!user) throw new AppError(404, 'User not found');
+  return user;
+}
+
+export type UpdateProfileInput = {
+  name?: string;
+  phone?: string | null;
+};
+
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<UserProfile> {
+  const existing = await prisma.user.findUnique({ where: { id: userId } });
+  if (!existing) throw new AppError(404, 'User not found');
+  if (!existing.isActive) throw new AppError(403, 'Account is deactivated');
+
+  const data: { name?: string | null; phone?: string | null } = {};
+  if (input.name !== undefined) {
+    const trimmed = input.name.trim();
+    if (!trimmed) throw new AppError(400, 'Name cannot be empty');
+    data.name = trimmed;
+  }
+  if (input.phone !== undefined) {
+    data.phone = input.phone === null || input.phone.trim() === '' ? null : input.phone.trim();
+  }
+
+  return prisma.user.update({
+    where: { id: userId },
+    data,
+    select: profileSelect,
+  });
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  if (!currentPassword || !newPassword) {
+    throw new AppError(400, 'Current password and new password are required');
+  }
+  validatePassword(newPassword);
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, 'User not found');
+  if (!user.isActive) throw new AppError(403, 'Account is deactivated');
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Current password is incorrect');
+
+  const saltRounds = Math.min(Math.max(env.BCRYPT_SALT_ROUNDS ?? 12, 10), 14);
+  const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    }),
+    prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+}
+
+export async function deleteAccount(userId: string, password: string): Promise<void> {
+  if (!password) throw new AppError(400, 'Password is required');
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, 'User not found');
+
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Password is incorrect');
+
+  const ownedKafelas = await prisma.kafela.findMany({
+    where: { createdById: userId },
+    select: {
+      id: true,
+      name: true,
+      members: {
+        where: { status: 'active' },
+        select: { userId: true },
+      },
+    },
+  });
+
+  const blocked = ownedKafelas.filter((k) =>
+    k.members.some((m) => m.userId !== userId)
+  );
+  if (blocked.length > 0) {
+    const names = blocked.map((k) => k.name).join(', ');
+    throw new AppError(
+      409,
+      `Cannot delete account while you own kafela(s) with other active members: ${names}. Leave or hand off those kafelas first.`
+    );
+  }
+
+  const soleOwnedIds = ownedKafelas.map((k) => k.id);
+
+  await prisma.$transaction(async (tx) => {
+    if (soleOwnedIds.length > 0) {
+      await tx.kafela.deleteMany({ where: { id: { in: soleOwnedIds } } });
+    }
+    await tx.user.delete({ where: { id: userId } });
   });
 }

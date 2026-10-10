@@ -71,7 +71,8 @@ railway service HajjBro
 | `NODE_ENV`     | `production` (Railway usually sets this). |
 | `PORT`         | Set by Railway. |
 | `CORS_ORIGINS` | Comma-separated allowed origins; default `*`. |
-| `JWT_EXPIRES_IN` | e.g. `7d` (default `15m`). |
+| `JWT_EXPIRES_IN` | Access token TTL (default `15m`). |
+| `JWT_REFRESH_EXPIRES_IN` | Sliding refresh token TTL (default `90d`). |
 | `LOG_LEVEL`    | `info` (default). |
 
 Firebase (optional): `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIREBASE_PRIVATE_KEY_ID`.
@@ -81,7 +82,7 @@ Firebase (optional): `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_P
 - **Base:** `http://localhost:3000/api/v1`
 - **Health:** `GET /api/v1/health` – status + DB check
 - **Readiness:** `GET /api/v1/health/ready` – 200 if DB connected (for probes)
-- **Auth:** `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `GET /api/v1/auth/me` (Bearer token)
+- **Auth:** `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET|PATCH|DELETE /api/v1/auth/me`, `PATCH /api/v1/auth/password` (Bearer token for protected routes)
 
 ## Project structure
 

@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HajjBro uses Face ID to unlock the app when app lock is enabled.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>HajjBro shares your location with your kafela so group leaders can find you during Hajj.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HajjBro shares your location with your kafela so group leaders can find you during Hajj.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

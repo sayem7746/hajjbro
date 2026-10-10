@@ -17,6 +17,8 @@ import KafelaPage from '../pages/Kafela';
 import KafelaGroupsPage from '../pages/KafelaGroups';
 import KafelaBroadcastPage from '../pages/KafelaBroadcast';
 import KafelaRollCallPage from '../pages/KafelaRollCall';
+import Settings from '../pages/Settings';
+import SettingsProfile from '../pages/SettingsProfile';
 
 const tabIconClass = 'tab-icon';
 
@@ -38,6 +40,8 @@ const AppTabs: React.FC = () => {
         <Route exact path="/app/kafela/groups" component={KafelaGroupsPage} />
         <Route exact path="/app/kafela/broadcast" component={KafelaBroadcastPage} />
         <Route exact path="/app/kafela/roll-call" component={KafelaRollCallPage} />
+        <Route exact path="/app/settings" component={Settings} />
+        <Route exact path="/app/settings/profile" component={SettingsProfile} />
         <Route exact path="/app">
           <Redirect to="/app/home" />
         </Route>
