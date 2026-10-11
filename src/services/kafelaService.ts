@@ -13,6 +13,14 @@ import { generateJoinCode, normalizeJoinCode } from '../utils/joinCode.js';
 import { sendMulticastPush } from './firebase.js';
 import { publishKafelaChange } from './kafelaLive.js';
 import { logger } from '../utils/logger.js';
+import {
+  VOICE_BODY,
+  MAX_VOICE_DURATION_MS,
+  deleteVoiceFile,
+  formatVoicePushBody,
+  openVoiceReadStream,
+  saveVoiceFile,
+} from '../utils/kafelaVoiceStorage.js';
 
 const STALE_LOCATION_MS = 10 * 60 * 1000;
 export const MAX_COMPANIONS_PER_MEMBER = 3;
@@ -1282,6 +1290,41 @@ export async function getVisibleLocations(userId: string, kafelaId: string) {
 
 // ─── Phase 4: Broadcasts ─────────────────────────────────────────────────────
 
+async function resolveBroadcastAudience(
+  me: Awaited<ReturnType<typeof requireActiveMember>>,
+  kafelaId: string,
+  inputGroupId?: string | null
+): Promise<string | null> {
+  let groupId: string | null = inputGroupId ?? null;
+
+  if (isKafelaAdmin(me.role)) {
+    if (groupId) {
+      const group = await prisma.kafelaGroup.findFirst({ where: { id: groupId, kafelaId } });
+      if (!group) throw new AppError(404, 'Group not found');
+    }
+  } else if (me.role === 'group_admin') {
+    if (!me.groupId) throw new AppError(403, 'You are not assigned to a group');
+    if (groupId && groupId !== me.groupId) {
+      throw new AppError(403, 'Group admins can only broadcast to their own group');
+    }
+    groupId = me.groupId;
+  } else {
+    throw new AppError(403, 'Only kafela or group admins can broadcast');
+  }
+
+  return groupId;
+}
+
+async function assertCanViewBroadcast(
+  me: Awaited<ReturnType<typeof requireActiveMember>>,
+  broadcast: { kafelaId: string; groupId: string | null }
+) {
+  if (isKafelaAdmin(me.role)) return;
+  if (broadcast.groupId && broadcast.groupId !== me.groupId) {
+    throw new AppError(403, 'This broadcast is not for your group');
+  }
+}
+
 export async function createBroadcast(
   userId: string,
   kafelaId: string,
@@ -1299,23 +1342,7 @@ export async function createBroadcast(
   const body = input.body?.trim();
   if (!title || !body) throw new AppError(400, 'Title and body are required');
 
-  let groupId: string | null = input.groupId ?? null;
-
-  if (isKafelaAdmin(me.role)) {
-    if (groupId) {
-      const group = await prisma.kafelaGroup.findFirst({ where: { id: groupId, kafelaId } });
-      if (!group) throw new AppError(404, 'Group not found');
-    }
-  } else if (me.role === 'group_admin') {
-    if (!me.groupId) throw new AppError(403, 'You are not assigned to a group');
-    if (groupId && groupId !== me.groupId) {
-      throw new AppError(403, 'Group admins can only broadcast to their own group');
-    }
-    groupId = me.groupId;
-  } else {
-    throw new AppError(403, 'Only kafela or group admins can broadcast');
-  }
-
+  const groupId = await resolveBroadcastAudience(me, kafelaId, input.groupId);
   const priority: BroadcastPriority = input.priority === 'urgent' ? 'urgent' : 'info';
 
   const broadcast = await prisma.broadcast.create({
@@ -1329,14 +1356,83 @@ export async function createBroadcast(
       rallyLat: input.rallyLat ?? null,
       rallyLng: input.rallyLng ?? null,
     },
-    include: {
-      group: { select: { id: true, name: true, color: true } },
-      author: {
-        select: { id: true, displayName: true, user: { select: { name: true } } },
-      },
-      _count: { select: { acks: true } },
-    },
+    include: broadcastWriteInclude,
   });
+
+  const recipients = await prisma.kafelaMember.findMany({
+    where: {
+      kafelaId,
+      status: 'active',
+      ...(groupId ? { groupId } : {}),
+    },
+    select: { user: { select: { id: true, fcmToken: true } } },
+  });
+
+  const prefix = priority === 'urgent' ? '🚨 ' : '';
+  const scope = broadcast.group?.name ? ` [${broadcast.group.name}]` : '';
+  await notifyMembers(recipients, `${prefix}${title}${scope}`, body, {
+    type: 'kafela_broadcast',
+    kafelaId,
+    broadcastId: broadcast.id,
+    priority,
+  });
+
+  publishKafelaChange(kafelaId);
+  return broadcast;
+}
+
+export async function createVoiceBroadcast(
+  userId: string,
+  kafelaId: string,
+  input: {
+    title: string;
+    groupId?: string | null;
+    priority?: BroadcastPriority;
+    rallyLat?: number | null;
+    rallyLng?: number | null;
+    durationMs?: number | null;
+    audio: { buffer: Buffer; mimeType: string };
+  }
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const title = input.title?.trim() || VOICE_BODY;
+  if (!title) throw new AppError(400, 'Title is required');
+
+  const durationMs =
+    input.durationMs == null || Number.isNaN(Number(input.durationMs))
+      ? null
+      : Math.round(Number(input.durationMs));
+  if (durationMs != null && (durationMs < 1 || durationMs > MAX_VOICE_DURATION_MS)) {
+    throw new AppError(400, 'Voice message must be between 1 and 60 seconds');
+  }
+
+  const groupId = await resolveBroadcastAudience(me, kafelaId, input.groupId);
+  const priority: BroadcastPriority = input.priority === 'urgent' ? 'urgent' : 'info';
+
+  const saved = await saveVoiceFile(input.audio.buffer, input.audio.mimeType);
+
+  let broadcast;
+  try {
+    broadcast = await prisma.broadcast.create({
+      data: {
+        kafelaId,
+        groupId,
+        authorId: me.id,
+        title,
+        body: VOICE_BODY,
+        priority,
+        rallyLat: input.rallyLat ?? null,
+        rallyLng: input.rallyLng ?? null,
+        audioPath: saved.audioPath,
+        audioMime: saved.audioMime,
+        audioDurationMs: durationMs,
+      },
+      include: broadcastWriteInclude,
+    });
+  } catch (err) {
+    await deleteVoiceFile(saved.audioPath);
+    throw err;
+  }
 
   const recipients = await prisma.kafelaMember.findMany({
     where: {
@@ -1352,7 +1448,7 @@ export async function createBroadcast(
   await notifyMembers(
     recipients,
     `${prefix}${title}${scope}`,
-    body,
+    formatVoicePushBody(durationMs),
     {
       type: 'kafela_broadcast',
       kafelaId,
@@ -1363,6 +1459,31 @@ export async function createBroadcast(
 
   publishKafelaChange(kafelaId);
   return broadcast;
+}
+
+export async function getBroadcastAudio(
+  userId: string,
+  kafelaId: string,
+  broadcastId: string
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const broadcast = await prisma.broadcast.findFirst({
+    where: { id: broadcastId, kafelaId },
+    select: {
+      id: true,
+      kafelaId: true,
+      groupId: true,
+      audioPath: true,
+      audioMime: true,
+    },
+  });
+  if (!broadcast?.audioPath) throw new AppError(404, 'Voice message not found');
+  await assertCanViewBroadcast(me, broadcast);
+
+  return {
+    mime: broadcast.audioMime || 'audio/mp4',
+    stream: openVoiceReadStream(broadcast.audioPath),
+  };
 }
 
 export async function listBroadcasts(userId: string, kafelaId: string) {
@@ -1501,7 +1622,12 @@ export async function updateBroadcast(
   assertCanManageBroadcast(me, existing);
 
   const title = input.title !== undefined ? input.title.trim() : existing.title;
-  const body = input.body !== undefined ? input.body.trim() : existing.body;
+  const isVoice = !!existing.audioPath;
+  const body = isVoice
+    ? VOICE_BODY
+    : input.body !== undefined
+      ? input.body.trim()
+      : existing.body;
   if (!title || !body) throw new AppError(400, 'Title and body are required');
 
   const priority: BroadcastPriority =
@@ -1526,6 +1652,7 @@ export async function deleteBroadcast(userId: string, kafelaId: string, broadcas
   assertCanManageBroadcast(me, existing);
 
   await prisma.broadcast.delete({ where: { id: existing.id } });
+  await deleteVoiceFile(existing.audioPath);
   publishKafelaChange(kafelaId);
   return { deleted: true };
 }
@@ -1541,7 +1668,13 @@ export async function deleteAllBroadcasts(userId: string, kafelaId: string) {
     where.groupId = me.groupId;
   }
 
+  const withAudio = await prisma.broadcast.findMany({
+    where: { ...where, audioPath: { not: null } },
+    select: { audioPath: true },
+  });
+
   const result = await prisma.broadcast.deleteMany({ where });
+  await Promise.all(withAudio.map((b) => deleteVoiceFile(b.audioPath)));
   if (result.count > 0) publishKafelaChange(kafelaId);
   return { deleted: result.count };
 }

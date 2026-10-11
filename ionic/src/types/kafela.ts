@@ -109,6 +109,9 @@ export interface Broadcast {
   priority: 'info' | 'urgent';
   rallyLat: number | string | null;
   rallyLng: number | string | null;
+  audioPath?: string | null;
+  audioMime?: string | null;
+  audioDurationMs?: number | null;
   createdAt: string;
   seenByMe?: boolean;
   _count?: { acks: number };

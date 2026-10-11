@@ -15,6 +15,7 @@ import {
 import { useKafela } from '../../contexts/KafelaContext';
 import { kafelaApi } from '../../services/kafelaApi';
 import { householdSize } from '../../types/kafela';
+import VoiceBroadcastPlayer from './VoiceBroadcastPlayer';
 
 type Props = {
   onOpenSos: () => void;
@@ -208,7 +209,15 @@ const KafelaHome: React.FC<Props> = ({ onOpenSos, onLeave, onOpenPeople }) => {
             </button>
           </div>
           <p className="mt-2 font-semibold">{broadcasts[0].title}</p>
-          <p className="mt-1 line-clamp-2 text-sm text-stitch-on-variant">{broadcasts[0].body}</p>
+          {broadcasts[0].audioPath && kafela ? (
+            <VoiceBroadcastPlayer
+              kafelaId={kafela.id}
+              broadcastId={broadcasts[0].id}
+              durationMs={broadcasts[0].audioDurationMs}
+            />
+          ) : (
+            <p className="mt-1 line-clamp-2 text-sm text-stitch-on-variant">{broadcasts[0].body}</p>
+          )}
           {!broadcasts[0].seenByMe && (
             <button
               type="button"

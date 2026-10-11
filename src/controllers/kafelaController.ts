@@ -422,6 +422,57 @@ export async function createBroadcast(
   }
 }
 
+export async function createVoiceBroadcast(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) throw new AppError(400, 'Audio file is required');
+
+    const body = req.body ?? {};
+    const parseOptionalNumber = (value: unknown): number | null => {
+      if (value === undefined || value === null || value === '') return null;
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const data = await kafelaService.createVoiceBroadcast(requireUserId(req), kafelaIdParam(req), {
+      title: typeof body.title === 'string' ? body.title : 'Voice message',
+      groupId: body.groupId === '' || body.groupId === undefined ? null : body.groupId,
+      priority: body.priority as BroadcastPriority | undefined,
+      rallyLat: parseOptionalNumber(body.rallyLat),
+      rallyLng: parseOptionalNumber(body.rallyLng),
+      durationMs: parseOptionalNumber(body.durationMs),
+      audio: { buffer: file.buffer, mimeType: file.mimetype },
+    });
+    res.status(201).json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getBroadcastAudio(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { mime, stream } = await kafelaService.getBroadcastAudio(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.broadcastId
+    );
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    stream.on('error', (err) => next(err));
+    stream.pipe(res);
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function listBroadcasts(
   req: Request,
   res: Response,

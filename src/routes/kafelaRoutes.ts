@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
 import { kafelaLeaveRateLimiter, kafelaLiveRateLimiter } from '../middleware/rateLimit.js';
+import { kafelaVoiceUpload } from '../middleware/kafelaVoiceUpload.js';
 import * as kafela from '../controllers/kafelaController.js';
 
 const router = Router();
@@ -45,9 +46,11 @@ router.get('/:kafelaId/locations', kafela.listLocations);
 // Phase 4 — broadcasts
 router.get('/:kafelaId/broadcasts', kafela.listBroadcasts);
 router.post('/:kafelaId/broadcasts', kafela.createBroadcast);
+router.post('/:kafelaId/broadcasts/voice', kafelaVoiceUpload, kafela.createVoiceBroadcast);
 router.delete('/:kafelaId/broadcasts', kafela.deleteAllBroadcasts);
 router.patch('/:kafelaId/broadcasts/:broadcastId', kafela.updateBroadcast);
 router.delete('/:kafelaId/broadcasts/:broadcastId', kafela.deleteBroadcast);
+router.get('/:kafelaId/broadcasts/:broadcastId/audio', kafela.getBroadcastAudio);
 router.post('/:kafelaId/broadcasts/:broadcastId/ack', kafela.ackBroadcast);
 router.get('/:kafelaId/broadcasts/:broadcastId/acks', kafela.broadcastAcks);
 

@@ -180,6 +180,56 @@ export const kafelaApi = {
     }
   ) => api.post(`/kafelas/${kafelaId}/broadcasts`, body).then((r) => unwrap<Broadcast>(r)),
 
+  createVoiceBroadcast: (
+    kafelaId: string,
+    body: {
+      title: string;
+      groupId?: string | null;
+      priority?: 'info' | 'urgent';
+      rallyLat?: number | null;
+      rallyLng?: number | null;
+      durationMs: number;
+      audio: Blob;
+      mimeType: string;
+    }
+  ) => {
+    const form = new FormData();
+    form.append('title', body.title);
+    if (body.groupId) form.append('groupId', body.groupId);
+    if (body.priority) form.append('priority', body.priority);
+    if (body.rallyLat != null) form.append('rallyLat', String(body.rallyLat));
+    if (body.rallyLng != null) form.append('rallyLng', String(body.rallyLng));
+    form.append('durationMs', String(body.durationMs));
+    const ext = body.mimeType.includes('webm') ? 'webm' : 'm4a';
+    form.append('audio', body.audio, `voice.${ext}`);
+    return api
+      .post(`/kafelas/${kafelaId}/broadcasts/voice`, form, {
+        timeout: 60_000,
+      })
+      .then((r) => unwrap<Broadcast>(r));
+  },
+
+  fetchBroadcastAudioBlob: async (kafelaId: string, broadcastId: string) => {
+    const response = await api.get(`/kafelas/${kafelaId}/broadcasts/${broadcastId}/audio`, {
+      responseType: 'blob',
+      timeout: 60_000,
+    });
+    const blob = response.data as Blob;
+    // Axios returns error JSON as a Blob when responseType is blob — surface it.
+    if (blob.type && blob.type.includes('application/json')) {
+      const text = await blob.text();
+      let message = 'Could not load voice message';
+      try {
+        const parsed = JSON.parse(text) as { error?: string };
+        if (parsed.error) message = parsed.error;
+      } catch {
+        // keep default
+      }
+      throw new Error(message);
+    }
+    return blob;
+  },
+
   updateBroadcast: (
     kafelaId: string,
     broadcastId: string,

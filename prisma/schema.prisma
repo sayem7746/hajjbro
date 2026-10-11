@@ -411,16 +411,19 @@ model MemberLocation {
 }
 
 model Broadcast {
-  id        String            @id @default(cuid())
-  kafelaId  String            @map("kafela_id")
-  groupId   String?           @map("group_id")
-  authorId  String            @map("author_id")
-  title     String
-  body      String            @db.Text
-  priority  BroadcastPriority @default(info)
-  rallyLat  Decimal?          @map("rally_lat") @db.Decimal(10, 8)
-  rallyLng  Decimal?          @map("rally_lng") @db.Decimal(11, 8)
-  createdAt DateTime          @default(now()) @map("created_at")
+  id              String            @id @default(cuid())
+  kafelaId        String            @map("kafela_id")
+  groupId         String?           @map("group_id")
+  authorId        String            @map("author_id")
+  title           String
+  body            String            @db.Text
+  priority        BroadcastPriority @default(info)
+  rallyLat        Decimal?          @map("rally_lat") @db.Decimal(10, 8)
+  rallyLng        Decimal?          @map("rally_lng") @db.Decimal(11, 8)
+  audioPath       String?           @map("audio_path")
+  audioMime       String?           @map("audio_mime")
+  audioDurationMs Int?              @map("audio_duration_ms")
+  createdAt       DateTime          @default(now()) @map("created_at")
 
   kafela Kafela         @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
   group  KafelaGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
