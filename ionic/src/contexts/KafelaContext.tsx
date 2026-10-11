@@ -21,6 +21,7 @@ import { useAuth } from './AuthContext';
 import type {
   Broadcast,
   KafelaGroupSummary,
+  KafelaLeaveRequest,
   KafelaMember,
   KafelaSummary,
   RollCall,
@@ -38,6 +39,7 @@ interface KafelaContextType {
   broadcasts: Broadcast[];
   sosEvents: SosEvent[];
   rollCalls: RollCall[];
+  leaveRequests: KafelaLeaveRequest[];
   isAdmin: boolean;
   canSendBroadcast: boolean;
   /** Increments when a live snapshot is applied; detail pages can reload local status. */
@@ -83,6 +85,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [sosEvents, setSosEvents] = useState<SosEvent[]>([]);
   const [rollCalls, setRollCalls] = useState<RollCall[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<KafelaLeaveRequest[]>([]);
   const [liveRevision, setLiveRevision] = useState(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -100,6 +103,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setBroadcasts([]);
     setSosEvents([]);
     setRollCalls([]);
+    setLeaveRequests([]);
     setError(null);
     setLastUpdatedAt(null);
     setIsOffline(false);
@@ -116,6 +120,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setBroadcasts(snap.broadcasts);
       setSosEvents(snap.sosEvents);
       setRollCalls(snap.rollCalls);
+      setLeaveRequests(snap.leaveRequests ?? []);
       kafelaIdRef.current = snap.kafela.id;
       setLastUpdatedAt(meta?.cachedAt ?? new Date().toISOString());
       setIsOffline(Boolean(meta?.offline));
@@ -428,6 +433,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       broadcasts,
       sosEvents,
       rollCalls,
+      leaveRequests,
       isAdmin: me ? isKafelaAdmin(me.role) : false,
       canSendBroadcast: me ? canBroadcast(me.role) : false,
       liveRevision,
@@ -456,6 +462,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       broadcasts,
       sosEvents,
       rollCalls,
+      leaveRequests,
       liveRevision,
       lastUpdatedAt,
       isOffline,

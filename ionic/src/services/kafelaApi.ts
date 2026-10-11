@@ -4,6 +4,7 @@ import type {
   Broadcast,
   KafelaCompanion,
   KafelaCompanionRelation,
+  KafelaLeaveRequest,
   KafelaMember,
   KafelaMemberRole,
   KafelaGroupSummary,
@@ -28,6 +29,7 @@ export type KafelaSnapshot = {
   broadcasts: Broadcast[];
   sosEvents: SosEvent[];
   rollCalls: RollCall[];
+  leaveRequests: KafelaLeaveRequest[];
 };
 
 export const kafelaApi = {
@@ -53,8 +55,28 @@ export const kafelaApi = {
   }) =>
     api.post('/kafelas/join', body).then((r) => unwrap<{ kafela: KafelaSummary; me: KafelaMember }>(r)),
 
-  leave: (kafelaId: string) =>
-    api.post(`/kafelas/${kafelaId}/leave`).then((r) => unwrap<{ left: boolean }>(r)),
+  createLeaveRequest: (
+    kafelaId: string,
+    body: { password: string; confirmName?: string }
+  ) =>
+    api
+      .post(`/kafelas/${kafelaId}/leave-requests`, body)
+      .then((r) => unwrap<{ left: boolean; request: KafelaLeaveRequest | null }>(r)),
+
+  cancelLeaveRequest: (kafelaId: string, requestId: string) =>
+    api
+      .post(`/kafelas/${kafelaId}/leave-requests/${requestId}/cancel`)
+      .then((r) => unwrap<KafelaLeaveRequest>(r)),
+
+  approveLeaveRequest: (kafelaId: string, requestId: string) =>
+    api
+      .post(`/kafelas/${kafelaId}/leave-requests/${requestId}/approve`)
+      .then((r) => unwrap<{ left: boolean; requestId: string }>(r)),
+
+  denyLeaveRequest: (kafelaId: string, requestId: string) =>
+    api
+      .post(`/kafelas/${kafelaId}/leave-requests/${requestId}/deny`)
+      .then((r) => unwrap<KafelaLeaveRequest>(r)),
 
   rotateCode: (kafelaId: string) =>
     api.post(`/kafelas/${kafelaId}/rotate-code`).then((r) => unwrap<KafelaSummary>(r)),

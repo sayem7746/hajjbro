@@ -183,7 +183,7 @@ const SettingsProfile: React.FC = () => {
               trailing={
                 <button
                   type="button"
-                  className="text-stitch-on-variant"
+                  className="flex h-full w-full items-center justify-center text-stitch-on-variant"
                   onClick={() => setShowPasswords((v) => !v)}
                   aria-label={showPasswords ? 'Hide passwords' : 'Show passwords'}
                 >

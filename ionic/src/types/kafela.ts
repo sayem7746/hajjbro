@@ -155,6 +155,25 @@ export interface RollCall {
   _count?: { responses: number };
 }
 
+export type KafelaLeaveRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
+
+export interface KafelaLeaveRequest {
+  id: string;
+  kafelaId: string;
+  memberId: string;
+  status: KafelaLeaveRequestStatus;
+  resolvedById: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  updatedAt?: string;
+  member: {
+    id: string;
+    displayName: string | null;
+    role: KafelaMemberRole;
+    user: { id: string; name: string | null; email: string };
+  };
+}
+
 export interface MyKafelaResponse {
   kafela: KafelaSummary;
   me: KafelaMember;

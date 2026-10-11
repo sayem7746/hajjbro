@@ -5,6 +5,7 @@ import type {
   KafelaMemberRole,
   Prisma,
 } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { GROUP_COLORS, isKafelaAdmin } from '../types/kafela.js';
@@ -79,6 +80,38 @@ const kafelaSelect = {
   updatedAt: true,
   _count: { select: { members: { where: { status: 'active' } } } },
 } as const;
+
+const leaveRequestSelect = {
+  id: true,
+  kafelaId: true,
+  memberId: true,
+  status: true,
+  resolvedById: true,
+  createdAt: true,
+  resolvedAt: true,
+  updatedAt: true,
+  member: {
+    select: {
+      id: true,
+      displayName: true,
+      role: true,
+      user: { select: { id: true, name: true, email: true } },
+    },
+  },
+} as const;
+
+async function verifyAccountPassword(userId: string, password: unknown): Promise<void> {
+  if (typeof password !== 'string' || !password) {
+    throw new AppError(400, 'Password is required');
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true, isActive: true },
+  });
+  if (!user || !user.isActive) throw new AppError(403, 'Account is deactivated');
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) throw new AppError(401, 'Password is incorrect');
+}
 
 async function uniqueJoinCode(): Promise<string> {
   for (let i = 0; i < 12; i++) {
@@ -361,7 +394,11 @@ export async function getMyKafela(userId: string) {
   return { kafela: { ...kafela, headcount }, me };
 }
 
-export async function leaveKafela(userId: string, kafelaId: string) {
+export async function leaveKafela(
+  userId: string,
+  kafelaId: string,
+  options?: { approvedRequestId?: string; resolvedByMemberId?: string }
+) {
   const me = await requireActiveMember(userId, kafelaId);
 
   if (isKafelaAdmin(me.role)) {
@@ -392,18 +429,37 @@ export async function leaveKafela(userId: string, kafelaId: string) {
       where: { id: adminGroup.id },
       data: { adminMemberId: null },
     });
-    if (me.role === 'group_admin') {
-      // role cleared below
-    }
   }
 
-  await prisma.$transaction([
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.kafelaCompanion.deleteMany({ where: { memberId: me.id } }),
     prisma.kafelaMember.update({
       where: { id: me.id },
       data: { status: 'left', groupId: null, role: 'member', sharingEnabled: false },
     }),
-  ]);
+  ];
+
+  if (options?.approvedRequestId) {
+    ops.push(
+      prisma.kafelaLeaveRequest.update({
+        where: { id: options.approvedRequestId },
+        data: {
+          status: 'approved',
+          resolvedById: options.resolvedByMemberId ?? null,
+          resolvedAt: new Date(),
+        },
+      })
+    );
+  } else {
+    ops.push(
+      prisma.kafelaLeaveRequest.updateMany({
+        where: { memberId: me.id, status: 'pending' },
+        data: { status: 'cancelled', resolvedAt: new Date() },
+      })
+    );
+  }
+
+  await prisma.$transaction(ops);
 
   const remaining = await prisma.kafelaMember.count({
     where: { kafelaId, status: 'active' },
@@ -417,6 +473,188 @@ export async function leaveKafela(userId: string, kafelaId: string) {
 
   publishKafelaChange(kafelaId);
   return { left: true };
+}
+
+export async function createLeaveRequest(
+  userId: string,
+  kafelaId: string,
+  input: { password?: unknown; confirmName?: unknown }
+) {
+  await verifyAccountPassword(userId, input.password);
+
+  const me = await requireActiveMember(userId, kafelaId);
+  const kafela = await prisma.kafela.findUnique({
+    where: { id: kafelaId },
+    select: { id: true, name: true, isActive: true },
+  });
+  if (!kafela || !kafela.isActive) throw new AppError(404, 'Kafela not found');
+
+  const otherMembers = await prisma.kafelaMember.count({
+    where: { kafelaId, status: 'active', id: { not: me.id } },
+  });
+  const leavesImmediately = isKafelaAdmin(me.role) || otherMembers === 0;
+
+  if (leavesImmediately) {
+    const confirmName = typeof input.confirmName === 'string' ? input.confirmName.trim() : '';
+    if (!confirmName || confirmName.toLowerCase() !== kafela.name.trim().toLowerCase()) {
+      throw new AppError(400, 'Type the kafela name to confirm you want to leave');
+    }
+    await leaveKafela(userId, kafelaId);
+    return { left: true as const, request: null };
+  }
+
+  const existing = await prisma.kafelaLeaveRequest.findFirst({
+    where: { memberId: me.id, status: 'pending' },
+    select: leaveRequestSelect,
+  });
+  if (existing) {
+    throw new AppError(409, 'You already have a pending leave request');
+  }
+
+  const request = await prisma.kafelaLeaveRequest.create({
+    data: { kafelaId, memberId: me.id },
+    select: leaveRequestSelect,
+  });
+
+  const admins = await prisma.kafelaMember.findMany({
+    where: { kafelaId, status: 'active', role: 'kafela_admin' },
+    select: { user: { select: { id: true, fcmToken: true } } },
+  });
+  const who = memberDisplayName(me);
+  await notifyMembers(admins, 'Leave request', `${who} asked to leave ${kafela.name}`, {
+    type: 'kafela_leave_request',
+    kafelaId,
+    requestId: request.id,
+  });
+
+  publishKafelaChange(kafelaId);
+  return { left: false as const, request };
+}
+
+export async function cancelLeaveRequest(userId: string, kafelaId: string, requestId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const request = await prisma.kafelaLeaveRequest.findFirst({
+    where: { id: requestId, kafelaId, status: 'pending' },
+    select: leaveRequestSelect,
+  });
+  if (!request) throw new AppError(404, 'Leave request not found');
+  if (request.memberId !== me.id) {
+    throw new AppError(403, 'You can only cancel your own leave request');
+  }
+
+  const updated = await prisma.kafelaLeaveRequest.update({
+    where: { id: request.id },
+    data: { status: 'cancelled', resolvedAt: new Date() },
+    select: leaveRequestSelect,
+  });
+
+  publishKafelaChange(kafelaId);
+  return updated;
+}
+
+export async function approveLeaveRequest(userId: string, kafelaId: string, requestId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  assertKafelaAdmin(me);
+
+  const request = await prisma.kafelaLeaveRequest.findFirst({
+    where: { id: requestId, kafelaId, status: 'pending' },
+    select: {
+      ...leaveRequestSelect,
+      member: {
+        select: {
+          id: true,
+          userId: true,
+          displayName: true,
+          role: true,
+          status: true,
+          user: { select: { id: true, name: true, email: true, fcmToken: true } },
+        },
+      },
+    },
+  });
+  if (!request) throw new AppError(404, 'Leave request not found');
+  if (request.memberId === me.id) {
+    throw new AppError(403, 'You cannot approve your own leave request');
+  }
+  if (request.member.status !== 'active') {
+    throw new AppError(409, 'This member is no longer active in the kafela');
+  }
+
+  await leaveKafela(request.member.userId, kafelaId, {
+    approvedRequestId: request.id,
+    resolvedByMemberId: me.id,
+  });
+
+  await notifyMembers(
+    [{ user: { id: request.member.user.id, fcmToken: request.member.user.fcmToken } }],
+    'Leave approved',
+    `You have left the kafela`,
+    { type: 'kafela_leave_approved', kafelaId, requestId: request.id }
+  );
+
+  return { left: true as const, requestId: request.id };
+}
+
+export async function denyLeaveRequest(userId: string, kafelaId: string, requestId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  assertKafelaAdmin(me);
+
+  const request = await prisma.kafelaLeaveRequest.findFirst({
+    where: { id: requestId, kafelaId, status: 'pending' },
+    select: {
+      ...leaveRequestSelect,
+      member: {
+        select: {
+          id: true,
+          displayName: true,
+          role: true,
+          user: { select: { id: true, name: true, email: true, fcmToken: true } },
+        },
+      },
+    },
+  });
+  if (!request) throw new AppError(404, 'Leave request not found');
+  if (request.memberId === me.id) {
+    throw new AppError(403, 'You cannot deny your own leave request');
+  }
+
+  const updated = await prisma.kafelaLeaveRequest.update({
+    where: { id: request.id },
+    data: {
+      status: 'denied',
+      resolvedById: me.id,
+      resolvedAt: new Date(),
+    },
+    select: leaveRequestSelect,
+  });
+
+  await notifyMembers(
+    [{ user: { id: request.member.user.id, fcmToken: request.member.user.fcmToken } }],
+    'Leave denied',
+    'A kafela admin denied your request to leave. You are still in the group.',
+    { type: 'kafela_leave_denied', kafelaId, requestId: request.id }
+  );
+
+  publishKafelaChange(kafelaId);
+  return updated;
+}
+
+async function listPendingLeaveRequestsForViewer(
+  viewer: { id: string; role: KafelaMemberRole },
+  kafelaId: string
+) {
+  const where: Prisma.KafelaLeaveRequestWhereInput = {
+    kafelaId,
+    status: 'pending',
+  };
+  if (!isKafelaAdmin(viewer.role)) {
+    where.memberId = viewer.id;
+  }
+  return prisma.kafelaLeaveRequest.findMany({
+    where,
+    select: leaveRequestSelect,
+    orderBy: { createdAt: 'asc' },
+  });
 }
 
 export async function rotateJoinCode(userId: string, kafelaId: string) {
@@ -526,6 +764,10 @@ export async function removeMember(actorUserId: string, kafelaId: string, member
     prisma.kafelaMember.update({
       where: { id: memberId },
       data: { status: 'removed', groupId: null, sharingEnabled: false },
+    }),
+    prisma.kafelaLeaveRequest.updateMany({
+      where: { memberId, status: 'pending' },
+      data: { status: 'cancelled', resolvedAt: new Date(), resolvedById: actor.id },
     }),
   ]);
 
@@ -1835,14 +2077,16 @@ export async function getKafelaSnapshot(userId: string, kafelaId: string) {
   });
   if (!kafela || !kafela.isActive) throw new AppError(404, 'Kafela not found');
 
-  const [members, groups, broadcasts, sosEvents, rollCalls, headcount] = await Promise.all([
-    listMembers(userId, kafelaId),
-    listGroups(userId, kafelaId),
-    listBroadcasts(userId, kafelaId),
-    listSos(userId, kafelaId, true),
-    listRollCalls(userId, kafelaId),
-    getOccupiedHeadcount(kafelaId),
-  ]);
+  const [members, groups, broadcasts, sosEvents, rollCalls, headcount, leaveRequests] =
+    await Promise.all([
+      listMembers(userId, kafelaId),
+      listGroups(userId, kafelaId),
+      listBroadcasts(userId, kafelaId),
+      listSos(userId, kafelaId, true),
+      listRollCalls(userId, kafelaId),
+      getOccupiedHeadcount(kafelaId),
+      listPendingLeaveRequestsForViewer(me, kafelaId),
+    ]);
 
   return {
     kafela: { ...kafela, headcount },
@@ -1852,6 +2096,7 @@ export async function getKafelaSnapshot(userId: string, kafelaId: string) {
     broadcasts,
     sosEvents,
     rollCalls,
+    leaveRequests,
   };
 }
 

@@ -41,9 +41,12 @@ ion-tab-bar.hajj-tab-bar {
 
 ion-tab-bar.hajj-tab-bar ion-tab-button {
   --color: rgba(26, 28, 27, 0.5);
-  --color-selected: #ffffff;
+  /* Ionic uses --color-selected for :hover on inactive tabs; keep it dark for contrast */
+  --color-selected: #13423d;
+  --color-focused: #13423d;
   --background: transparent;
-  --background-focused: transparent;
+  --background-focused: rgba(19, 66, 61, 0.08);
+  --background-focused-opacity: 1;
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -51,6 +54,8 @@ ion-tab-bar.hajj-tab-bar ion-tab-button {
 
 ion-tab-bar.hajj-tab-bar ion-tab-button.tab-selected {
   --color: #ffffff;
+  --color-selected: #ffffff;
+  --color-focused: #ffffff;
   --background: transparent;
 }
 

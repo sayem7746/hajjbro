@@ -271,6 +271,13 @@ enum KafelaCompanionRelation {
   other
 }
 
+enum KafelaLeaveRequestStatus {
+  pending
+  approved
+  denied
+  cancelled
+}
+
 model Kafela {
   id          String    @id @default(cuid())
   name        String
@@ -283,12 +290,13 @@ model Kafela {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  createdBy  User           @relation("KafelaCreator", fields: [createdById], references: [id])
-  members    KafelaMember[]
-  groups     KafelaGroup[]
-  broadcasts Broadcast[]
-  sosEvents  SosEvent[]
-  rollCalls  RollCall[]
+  createdBy     User                 @relation("KafelaCreator", fields: [createdById], references: [id])
+  members       KafelaMember[]
+  groups        KafelaGroup[]
+  broadcasts    Broadcast[]
+  sosEvents     SosEvent[]
+  rollCalls     RollCall[]
+  leaveRequests KafelaLeaveRequest[]
 
   @@index([joinCode])
   @@index([isActive])
@@ -323,12 +331,33 @@ model KafelaMember {
   rollCallMarks             RollCallResponse[]         @relation("RollCallMarker")
   companions                KafelaCompanion[]
   companionRollCallMarks    RollCallCompanionResponse[] @relation("CompanionRollCallMarker")
+  leaveRequests             KafelaLeaveRequest[]        @relation("LeaveRequester")
+  leaveRequestsResolved     KafelaLeaveRequest[]        @relation("LeaveResolver")
 
   @@unique([userId, kafelaId])
   @@index([kafelaId, status])
   @@index([groupId])
   @@index([userId, status])
   @@map("kafela_members")
+}
+
+model KafelaLeaveRequest {
+  id             String                   @id @default(cuid())
+  kafelaId       String                   @map("kafela_id")
+  memberId       String                   @map("member_id")
+  status         KafelaLeaveRequestStatus @default(pending)
+  resolvedById   String?                  @map("resolved_by_id")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  resolvedAt     DateTime?                @map("resolved_at")
+  updatedAt      DateTime                 @updatedAt @map("updated_at")
+
+  kafela     Kafela       @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  member     KafelaMember @relation("LeaveRequester", fields: [memberId], references: [id], onDelete: Cascade)
+  resolvedBy KafelaMember? @relation("LeaveResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([kafelaId, status])
+  @@index([memberId, status])
+  @@map("kafela_leave_requests")
 }
 
 model KafelaCompanion {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.js';
-import { kafelaLiveRateLimiter } from '../middleware/rateLimit.js';
+import { kafelaLeaveRateLimiter, kafelaLiveRateLimiter } from '../middleware/rateLimit.js';
 import * as kafela from '../controllers/kafelaController.js';
 
 const router = Router();
@@ -15,7 +15,10 @@ router.get('/mine', kafela.getMine);
 router.get('/:kafelaId/snapshot', kafelaLiveRateLimiter, kafela.getSnapshot);
 router.get('/:kafelaId/events', kafelaLiveRateLimiter, kafela.streamEvents);
 
-router.post('/:kafelaId/leave', kafela.leave);
+router.post('/:kafelaId/leave-requests', kafelaLeaveRateLimiter, kafela.createLeaveRequest);
+router.post('/:kafelaId/leave-requests/:requestId/cancel', kafela.cancelLeaveRequest);
+router.post('/:kafelaId/leave-requests/:requestId/approve', kafela.approveLeaveRequest);
+router.post('/:kafelaId/leave-requests/:requestId/deny', kafela.denyLeaveRequest);
 router.post('/:kafelaId/rotate-code', kafela.rotateCode);
 router.get('/:kafelaId/members', kafela.listMembers);
 router.patch('/:kafelaId/members/:memberId/role', kafela.updateMemberRole);

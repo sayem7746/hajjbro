@@ -5,6 +5,10 @@ import './lib/prisma.js'; // ensure DB connection attempted at startup
 import { logger } from './utils/logger.js';
 import { refreshDailyPrayerTimes } from './services/prayerTimesService.js';
 import { dispatchScheduledNotifications } from './services/notificationScheduleService.js';
+import {
+  startKafelaSimulator,
+  stopKafelaSimulator,
+} from './services/kafelaSimulator.js';
 
 const SAUDI_CRON_TZ = env.SAUDI_TIMEZONE ?? 'Asia/Riyadh';
 
@@ -36,6 +40,7 @@ function startCronJobs(): void {
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Server started');
   startCronJobs();
+  void startKafelaSimulator();
 });
 
 server.on('error', (err) => {
@@ -43,12 +48,11 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down');
+function shutdown(signal: string): void {
+  logger.info(`${signal} received, shutting down`);
+  stopKafelaSimulator();
   server.close(() => process.exit(0));
-});
+}
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down');
-  server.close(() => process.exit(0));
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

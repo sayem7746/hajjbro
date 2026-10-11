@@ -37,9 +37,13 @@ const InscribedField: React.FC<InscribedFieldProps> = ({
         autoComplete={autoComplete}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border-0 border-b-2 border-transparent bg-stitch-surface-low px-4 py-4 font-sans text-base text-stitch-on-surface outline-none transition-all duration-300 placeholder:text-stitch-on-variant/40 focus:border-stitch-primary"
+        className={`w-full rounded-lg border-0 border-b-2 border-transparent bg-stitch-surface-low px-4 py-4 font-sans text-base text-stitch-on-surface outline-none transition-all duration-300 placeholder:text-stitch-on-variant/40 focus:border-stitch-primary${trailing ? ' pr-12' : ''}`}
       />
-      {trailing}
+      {trailing ? (
+        <div className="absolute bottom-1 right-1 flex h-12 w-12 items-center justify-center">
+          {trailing}
+        </div>
+      ) : null}
     </div>
   );
 };

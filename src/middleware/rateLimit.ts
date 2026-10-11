@@ -24,6 +24,17 @@ export const authRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/** Password-gated kafela leave requests (separate bucket from login). */
+export const kafelaLeaveRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: env.RATE_LIMIT_AUTH_MAX ?? 10,
+  message: { error: 'Too many leave attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.sub ?? 'anonymous',
+  validate: { keyGeneratorIpFallback: false },
+});
+
 /**
  * Per-user cap for kafela live sync (SSE + snapshot).
  * Shared hotel/bus IPs would otherwise thrash the global per-IP limiter.

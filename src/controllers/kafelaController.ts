@@ -92,9 +92,74 @@ export async function streamEvents(req: Request, res: Response, next: NextFuncti
   }
 }
 
-export async function leave(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createLeaveRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
-    const data = await kafelaService.leaveKafela(requireUserId(req), kafelaIdParam(req));
+    const data = await kafelaService.createLeaveRequest(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.body ?? {}
+    );
+    res.status(data.left ? 200 : 201).json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function cancelLeaveRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const requestId = req.params.requestId;
+    if (!requestId) throw new AppError(400, 'Leave request ID is required');
+    const data = await kafelaService.cancelLeaveRequest(
+      requireUserId(req),
+      kafelaIdParam(req),
+      requestId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function approveLeaveRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const requestId = req.params.requestId;
+    if (!requestId) throw new AppError(400, 'Leave request ID is required');
+    const data = await kafelaService.approveLeaveRequest(
+      requireUserId(req),
+      kafelaIdParam(req),
+      requestId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function denyLeaveRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const requestId = req.params.requestId;
+    if (!requestId) throw new AppError(400, 'Leave request ID is required');
+    const data = await kafelaService.denyLeaveRequest(
+      requireUserId(req),
+      kafelaIdParam(req),
+      requestId
+    );
     res.json({ success: true, data });
   } catch (e) {
     next(e);

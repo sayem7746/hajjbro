@@ -38,6 +38,16 @@ export const env = {
   SAUDI_TIMEZONE: getEnvOptional('SAUDI_TIMEZONE', 'Asia/Riyadh'),
   RATE_LIMIT_MAX: parseInt(getEnvOptional('RATE_LIMIT_MAX', '100') ?? '100', 10),
   RATE_LIMIT_AUTH_MAX: parseInt(getEnvOptional('RATE_LIMIT_AUTH_MAX', '10') ?? '10', 10),
+  /**
+   * Dev-only kafela crowd (demo login + simulated pilgrims).
+   * Defaults on outside production; set KAFELA_SIMULATOR=false to disable.
+   */
+  KAFELA_SIMULATOR: (() => {
+    const raw = getEnvOptional('KAFELA_SIMULATOR');
+    if (raw === 'false' || raw === '0') return false;
+    if (raw === 'true' || raw === '1') return true;
+    return process.env.NODE_ENV !== 'production';
+  })(),
   // Railway sets PORT and DATABASE_URL automatically
   isProduction: process.env.NODE_ENV === 'production',
   isDevelopment: process.env.NODE_ENV !== 'production',
