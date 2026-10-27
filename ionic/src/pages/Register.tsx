@@ -105,25 +105,25 @@ const Register: React.FC = () => {
                   placeholder="name@example.com"
                   autoComplete="email"
                 />
-                <div className="relative">
-                  <InscribedField
-                    id="register-password"
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={setPassword}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute bottom-1 right-1 flex h-12 w-12 items-center justify-center text-stitch-on-variant"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
+                <InscribedField
+                  id="register-password"
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  trailing={
+                    <button
+                      type="button"
+                      className="flex h-full w-full items-center justify-center border-0 bg-transparent p-0 text-stitch-on-variant"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  }
+                />
                 <InscribedField
                   id="register-confirm"
                   label="Confirm Password"

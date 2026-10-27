@@ -36,8 +36,21 @@ function biometryLabel(type: BiometryType): string {
   }
 }
 
+/** Face ID / passcode UI resigns the app active state. Ignore lock-on-resume until this time. */
+let suppressRelockUntil = 0;
+
+export function shouldSuppressBiometricRelock(): boolean {
+  return Date.now() < suppressRelockUntil;
+}
+
+function suppressRelockFor(ms: number) {
+  suppressRelockUntil = Date.now() + ms;
+}
+
 export async function authenticateWithBiometrics(reason?: string): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return true;
+  // Cover the whole system prompt. iOS fires appStateChange while Face ID is up.
+  suppressRelockFor(60_000);
   try {
     await BiometricAuth.authenticate({
       reason: reason ?? 'Unlock HajjBro',
@@ -49,5 +62,8 @@ export async function authenticateWithBiometrics(reason?: string): Promise<boole
     return true;
   } catch {
     return false;
+  } finally {
+    // The resume event can arrive just after the prompt closes.
+    suppressRelockFor(1_500);
   }
 }

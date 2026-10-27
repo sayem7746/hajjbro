@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { IonPage, IonContent, useIonRouter } from '@ionic/react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import InscribedField from '../components/InscribedField';
+import loginKaaba from '../assets/login-kaaba.jpg';
 
 const MosqueMark: React.FC = () => (
   <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="currentColor" aria-hidden>
@@ -23,6 +24,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useIonRouter();
+  const reduceMotion = useReducedMotion();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,41 +46,93 @@ const Login: React.FC = () => {
 
   return (
     <IonPage>
-      <IonContent fullscreen className="sanctuary-content">
-        <div className="relative min-h-full overflow-hidden bg-stitch-bg font-sans text-stitch-on-surface">
-          <div className="pointer-events-none absolute -right-[10%] -top-[10%] h-[400px] w-[400px] rounded-full bg-stitch-primary/5 blur-[100px]" />
-          <div className="pointer-events-none absolute -bottom-[10%] -left-[10%] h-[300px] w-[300px] rounded-full bg-stitch-gold/10 blur-[90px]" />
+      <IonContent fullscreen style={{ '--background': '#0A1A18' } as React.CSSProperties}>
+        <div className="relative min-h-full overflow-hidden bg-[#0A1A18] font-sans text-stitch-on-surface">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            {/* Soft blurred layer — drifts slightly for motion-blur feel */}
+            <motion.img
+              src={loginKaaba}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 h-full w-full scale-125 object-cover blur-[14px] brightness-[0.85]"
+              animate={
+                reduceMotion
+                  ? undefined
+                  : {
+                      scale: [1.28, 1.38, 1.3, 1.28],
+                      x: ['0%', '-4%', '3%', '0%'],
+                      y: ['0%', '2%', '-3%', '0%'],
+                    }
+              }
+              transition={{ duration: 32, repeat: Infinity, ease: 'linear' }}
+            />
+            {/* Sharper layer — slow Ken Burns “video” pan */}
+            <motion.img
+              src={loginKaaba}
+              alt=""
+              draggable={false}
+              className="absolute inset-0 h-full w-full object-cover opacity-90"
+              animate={
+                reduceMotion
+                  ? { scale: 1.12 }
+                  : {
+                      scale: [1.14, 1.24, 1.18, 1.14],
+                      x: ['0%', '-3.5%', '2.5%', '0%'],
+                      y: ['0%', '-2%', '1.5%', '0%'],
+                    }
+              }
+              transition={
+                reduceMotion
+                  ? undefined
+                  : { duration: 28, repeat: Infinity, ease: 'linear' }
+              }
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A18] via-[#0A1A18]/55 to-[#0A1A18]/35" />
+            <div className="absolute inset-0 bg-[#13423D]/25 mix-blend-multiply" />
+            {!reduceMotion && (
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#FFE088]/10 to-transparent"
+                animate={{
+                  x: ['-40%', '40%', '-40%'],
+                  opacity: [0.15, 0.35, 0.15],
+                }}
+                transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+          </div>
 
-          <main className="relative z-10 mx-auto flex w-full max-w-[420px] flex-col items-center px-8 py-12">
+          <main className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[420px] flex-col items-center justify-center px-5 py-6">
             <motion.div
-              className="mb-12 flex flex-col items-center text-center"
+              className="mb-4 flex flex-col items-center text-center"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
             >
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-[20px] bg-gradient-to-br from-stitch-primary to-stitch-primary-mid shadow-[0_8px_32px_rgba(19,66,61,0.12)]">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#FFE088]/35 bg-gradient-to-br from-stitch-primary to-stitch-primary-mid shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
                 <MosqueMark />
               </div>
-              <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-stitch-primary">HajjBro</h1>
-              <p className="text-sm font-medium uppercase tracking-wide text-stitch-on-variant/80">
+              <h1 className="mb-0.5 text-2xl font-extrabold tracking-tight text-white drop-shadow-md">
+                HajjBro
+              </h1>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-[#FFE088]/90">
                 The Digital Sanctuary
               </p>
             </motion.div>
 
             <motion.form
               onSubmit={handleLogin}
-              className="w-full space-y-6"
+              className="w-full space-y-3 rounded-3xl border border-white/25 bg-white p-4 shadow-[0_20px_48px_rgba(0,0,0,0.35)]"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: 0.06 }}
             >
               {error && (
-                <p className="rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-800" role="alert">
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-800" role="alert">
                   {error}
                 </p>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-2.5">
                 <InscribedField
                   id="login-email"
                   label="Email Address"
@@ -87,29 +141,31 @@ const Login: React.FC = () => {
                   onChange={setEmail}
                   placeholder="name@example.com"
                   autoComplete="email"
+                  compact
                 />
-                <div className="relative">
-                  <InscribedField
-                    id="login-password"
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={setPassword}
-                    placeholder="••••••••"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="absolute bottom-1 right-1 flex h-12 w-12 items-center justify-center text-stitch-on-variant"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
+                <InscribedField
+                  id="login-password"
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  compact
+                  trailing={
+                    <button
+                      type="button"
+                      className="flex h-full w-full items-center justify-center border-0 bg-transparent p-0 text-stitch-on-variant"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  }
+                />
               </div>
 
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-end">
                 <button
                   type="button"
                   className="text-xs font-semibold text-stitch-primary/70"
@@ -122,44 +178,46 @@ const Login: React.FC = () => {
               </div>
               {resetNote && <p className="text-xs leading-relaxed text-stitch-on-variant">{resetNote}</p>}
 
-              <div className="space-y-4 pt-4">
+              <div className="space-y-2 pt-0.5">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-xl bg-gradient-to-br from-stitch-primary to-stitch-primary-mid px-6 py-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(19,66,61,0.15)] transition-all duration-300 active:scale-[0.98] disabled:opacity-70"
+                  className="w-full rounded-xl bg-gradient-to-br from-stitch-primary to-stitch-primary-mid px-5 py-3 text-[15px] font-bold text-white shadow-[0_6px_18px_rgba(19,66,61,0.22)] transition-all duration-300 active:scale-[0.98] disabled:opacity-70"
                 >
                   {loading ? 'Signing in…' : 'Sign In'}
                 </button>
                 <button
                   type="button"
-                  className="w-full rounded-xl bg-stitch-surface-high px-6 py-4 text-base font-bold text-stitch-primary transition-all duration-300 active:scale-[0.98]"
+                  className="w-full rounded-xl border border-stitch-primary/25 bg-transparent px-5 py-3 text-[15px] font-bold text-stitch-primary transition-all duration-300 active:scale-[0.98]"
                   onClick={() => router.push('/app/home', 'root', 'replace')}
                 >
                   Continue as Guest
                 </button>
               </div>
 
-              <div className="relative flex items-center justify-center py-4">
+              <div className="relative flex items-center justify-center py-0.5">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-stitch-outline/30" />
+                  <div className="w-full border-t border-stitch-outline/35" />
                 </div>
-                <span className="relative bg-stitch-bg px-4 text-xs font-medium text-stitch-on-variant/50">OR</span>
+                <span className="relative bg-white px-3 text-[11px] font-medium tracking-wide text-stitch-on-variant/45">
+                  OR
+                </span>
               </div>
 
               <button
                 type="button"
-                className="flex w-full items-center justify-center rounded-xl border border-stitch-outline/50 bg-transparent px-6 py-4 text-base font-bold text-stitch-primary/70 transition-all duration-300"
+                className="flex w-full items-center justify-center py-1.5 text-[15px] font-bold text-stitch-primary/75 transition-colors active:text-stitch-primary"
                 onClick={() => router.push('/register')}
               >
                 Register
               </button>
             </motion.form>
 
-            <footer className="mt-16 flex flex-col items-center text-center">
-              <p dir="rtl" className="mb-4 -translate-x-1 font-arabic text-2xl leading-relaxed text-stitch-primary/40">
+            <footer className="mt-4 flex flex-col items-center text-center">
+              <p dir="rtl" className="mb-1 font-arabic text-lg leading-relaxed text-[#FFE088]/80">
                 رَبِّ زِدْنِي عِلْمًا
               </p>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-stitch-on-variant/40">
+              <p className="text-[9px] font-medium uppercase tracking-widest text-white/45">
                 Your companion for the sacred path
               </p>
             </footer>

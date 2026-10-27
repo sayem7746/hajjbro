@@ -3,7 +3,11 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Fingerprint } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { authenticateWithBiometrics, checkBiometricAvailability } from '../services/biometric';
+import {
+  authenticateWithBiometrics,
+  checkBiometricAvailability,
+  shouldSuppressBiometricRelock,
+} from '../services/biometric';
 import { getBiometricLockEnabled } from '../services/tokenStorage';
 
 const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -12,6 +16,7 @@ const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState('');
   const promptedRef = useRef(false);
+  const unlockedRef = useRef(false);
 
   const shouldLock = useCallback(async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform() || !isAuthenticated) return false;
@@ -27,6 +32,7 @@ const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }
     const ok = await authenticateWithBiometrics('Unlock HajjBro');
     setUnlocking(false);
     if (ok) {
+      unlockedRef.current = true;
       setLocked(false);
       setError('');
     } else {
@@ -38,6 +44,7 @@ const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }
     if (isLoading) return;
     void (async () => {
       const lock = await shouldLock();
+      if (unlockedRef.current) return;
       setLocked(lock);
       if (lock && !promptedRef.current) {
         promptedRef.current = true;
@@ -56,6 +63,12 @@ const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }
 
     let wasBackground = false;
     const sub = CapApp.addListener('appStateChange', async ({ isActive }) => {
+      // Face ID presents a system sheet that backgrounds the app. That resume
+      // is not the user leaving HajjBro, so it must not lock again.
+      if (shouldSuppressBiometricRelock()) {
+        if (isActive) wasBackground = false;
+        return;
+      }
       if (!isActive) {
         wasBackground = true;
         return;
@@ -63,6 +76,8 @@ const BiometricLockGate: React.FC<{ children: React.ReactNode }> = ({ children }
       if (!wasBackground || !isAuthenticated) return;
       wasBackground = false;
       if (await shouldLock()) {
+        if (shouldSuppressBiometricRelock()) return;
+        unlockedRef.current = false;
         setLocked(true);
         setError('');
       }

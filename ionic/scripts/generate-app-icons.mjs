@@ -14,10 +14,30 @@ const root = join(__dirname, '..');
 const svgFull = readFileSync(join(root, 'src/assets/logo-icon.svg'));
 const svgFg = readFileSync(join(root, 'src/assets/logo-icon-foreground.svg'));
 
+/** Matches logo-icon.svg fill */
+const ICON_BG = { r: 32, g: 76, b: 72, alpha: 1 };
+
 async function writePng(svgBuffer, size, outPath, { fit = 'contain', background } = {}) {
   const bg = background ?? { r: 0, g: 0, b: 0, alpha: 0 };
   await sharp(svgBuffer, { density: 320 })
     .resize(size, size, { fit, position: 'center', background: bg })
+    .png()
+    .toFile(outPath);
+}
+
+/** Opaque circular launcher for older Android round icons */
+async function writeRoundPng(svgBuffer, size, outPath) {
+  const circleSvg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+      <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/>
+    </svg>`
+  );
+  const icon = await sharp(svgBuffer, { density: 320 })
+    .resize(size, size, { fit: 'cover', position: 'center', background: ICON_BG })
+    .png()
+    .toBuffer();
+  await sharp(icon)
+    .composite([{ input: await sharp(circleSvg).png().toBuffer(), blend: 'dest-in' }])
     .png()
     .toFile(outPath);
 }
@@ -29,15 +49,15 @@ async function main() {
   // Web / PWA
   await writePng(svgFull, 48, join(root, 'public', 'favicon.png'), {
     fit: 'cover',
-    background: { r: 27, g: 94, b: 32, alpha: 1 },
+    background: ICON_BG,
   });
   await writePng(svgFull, 64, join(webIconDir, 'favicon.png'), {
     fit: 'cover',
-    background: { r: 27, g: 94, b: 32, alpha: 1 },
+    background: ICON_BG,
   });
   await writePng(svgFull, 512, join(webIconDir, 'icon.png'), {
     fit: 'cover',
-    background: { r: 27, g: 94, b: 32, alpha: 1 },
+    background: ICON_BG,
   });
 
   // iOS (single 1024 marketing icon — opaque)
@@ -47,7 +67,7 @@ async function main() {
   );
   await writePng(svgFull, 1024, iosIcon, {
     fit: 'cover',
-    background: { r: 27, g: 94, b: 32, alpha: 1 },
+    background: ICON_BG,
   });
 
   // Android legacy / round launcher
@@ -71,12 +91,9 @@ async function main() {
     const base = join(androidRes, folder);
     await writePng(svgFull, size, join(base, 'ic_launcher.png'), {
       fit: 'cover',
-      background: { r: 27, g: 94, b: 32, alpha: 1 },
+      background: ICON_BG,
     });
-    await writePng(svgFull, size, join(base, 'ic_launcher_round.png'), {
-      fit: 'cover',
-      background: { r: 27, g: 94, b: 32, alpha: 1 },
-    });
+    await writeRoundPng(svgFull, size, join(base, 'ic_launcher_round.png'));
   }
 
   for (const [folder, size] of fgSizes) {
@@ -87,7 +104,23 @@ async function main() {
     });
   }
 
-  console.log('App icons generated (web, iOS, Android).');
+  // iOS launch images — cover crop of cinematic dawn photo
+  const splashSrc = join(root, 'src/assets/splash-kaaba.jpg');
+  const iosSplashDir = join(root, 'ios/App/App/Assets.xcassets/Splash.imageset');
+  const splashOut = [
+    'splash-2732x2732.png',
+    'splash-2732x2732-1.png',
+    'splash-2732x2732-2.png',
+  ];
+  const splashBuf = await sharp(splashSrc)
+    .resize(2732, 2732, { fit: 'cover', position: 'centre' })
+    .png()
+    .toBuffer();
+  for (const name of splashOut) {
+    await sharp(splashBuf).toFile(join(iosSplashDir, name));
+  }
+
+  console.log('App icons and iOS splash generated (web, iOS, Android).');
 }
 
 main().catch((e) => {

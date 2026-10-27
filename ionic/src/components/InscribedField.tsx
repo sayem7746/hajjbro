@@ -9,6 +9,7 @@ type InscribedFieldProps = {
   placeholder?: string;
   autoComplete?: string;
   trailing?: React.ReactNode;
+  compact?: boolean;
 };
 
 /** Stitch "inscribed" field: warm fill, bottom stroke only while focused. */
@@ -21,29 +22,34 @@ const InscribedField: React.FC<InscribedFieldProps> = ({
   placeholder,
   autoComplete,
   trailing,
+  compact = false,
 }) => {
   return (
-    <div className="group relative">
+    <div className="group">
       <label
         htmlFor={id}
-        className="mb-1 ml-1 block text-xs font-semibold text-stitch-primary/60 transition-colors group-focus-within:text-stitch-primary"
+        className="mb-0.5 ml-1 block text-xs font-semibold text-stitch-primary/60 transition-colors group-focus-within:text-stitch-primary"
       >
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full rounded-lg border-0 border-b-2 border-transparent bg-stitch-surface-low px-4 py-4 font-sans text-base text-stitch-on-surface outline-none transition-all duration-300 placeholder:text-stitch-on-variant/40 focus:border-stitch-primary${trailing ? ' pr-12' : ''}`}
-      />
-      {trailing ? (
-        <div className="absolute bottom-1 right-1 flex h-12 w-12 items-center justify-center">
-          {trailing}
-        </div>
-      ) : null}
+      <div className="relative">
+        <input
+          id={id}
+          type={type}
+          value={value}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-lg border-0 border-b-2 border-transparent bg-stitch-surface-low px-4 font-sans text-stitch-on-surface outline-none transition-all duration-300 placeholder:text-stitch-on-variant/40 focus:border-stitch-primary ${
+            compact ? 'py-2.5 text-[15px]' : 'py-4 text-base'
+          }${trailing ? ' pr-11' : ''}`}
+        />
+        {trailing ? (
+          <div className="absolute inset-y-0 right-0 flex w-11 items-center justify-center">
+            {trailing}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };

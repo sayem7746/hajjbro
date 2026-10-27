@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 import { KafelaProvider } from './contexts/KafelaContext';
 import BiometricLockGate from './components/BiometricLockGate';
+import SplashScreen from './components/SplashScreen';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -31,6 +32,7 @@ setupIonicReact();
 const App: React.FC = () => (
   <IonApp className="hajj-sanctuary-app">
     <AuthProvider>
+      <SplashScreen />
       <BiometricLockGate>
         <ProgressProvider>
           <KafelaProvider>
