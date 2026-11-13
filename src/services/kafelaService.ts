@@ -2202,6 +2202,497 @@ export async function closeRollCall(userId: string, kafelaId: string, rollCallId
   return closed;
 }
 
+// ─── Polls ───────────────────────────────────────────────────────────────────
+
+const MIN_POLL_OPTIONS = 2;
+const MAX_POLL_OPTIONS = 8;
+
+const pollAuthorSelect = {
+  id: true,
+  displayName: true,
+  user: { select: { name: true } },
+} as const;
+
+const pollGroupSelect = { id: true, name: true, color: true } as const;
+
+const pollOptionSelect = {
+  id: true,
+  label: true,
+  position: true,
+} as const;
+
+type PollRow = {
+  id: string;
+  kafelaId: string;
+  groupId: string | null;
+  authorId: string;
+  question: string;
+  allowMultiple: boolean;
+  anonymous: boolean;
+  closesAt: Date | null;
+  closedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  group: { id: string; name: string; color: string } | null;
+  author: {
+    id: string;
+    displayName: string | null;
+    user: { name: string | null };
+  };
+  options: Array<{ id: string; label: string; position: number }>;
+};
+
+function canManagePoll(
+  me: { id: string; role: KafelaMemberRole; groupId: string | null },
+  poll: { authorId: string; groupId: string | null }
+): boolean {
+  return (
+    isKafelaAdmin(me.role) ||
+    poll.authorId === me.id ||
+    (me.role === 'group_admin' && !!me.groupId && me.groupId === poll.groupId)
+  );
+}
+
+function canViewPoll(
+  me: { role: KafelaMemberRole; groupId: string | null },
+  poll: { groupId: string | null }
+): boolean {
+  if (isKafelaAdmin(me.role)) return true;
+  if (!poll.groupId) return true;
+  return me.groupId === poll.groupId;
+}
+
+function isInPollAudience(
+  me: { groupId: string | null },
+  poll: { groupId: string | null }
+): boolean {
+  if (!poll.groupId) return true;
+  return me.groupId === poll.groupId;
+}
+
+async function ensurePollClosedIfExpired(poll: {
+  id: string;
+  closesAt: Date | null;
+  closedAt: Date | null;
+}): Promise<Date | null> {
+  if (poll.closedAt) return poll.closedAt;
+  if (poll.closesAt && poll.closesAt.getTime() <= Date.now()) {
+    const closed = await prisma.poll.update({
+      where: { id: poll.id },
+      data: { closedAt: poll.closesAt },
+      select: { closedAt: true },
+    });
+    return closed.closedAt;
+  }
+  return null;
+}
+
+function pollAudienceWhere(kafelaId: string, groupId: string | null): Prisma.KafelaMemberWhereInput {
+  return {
+    kafelaId,
+    status: 'active',
+    ...(groupId ? { groupId } : {}),
+  };
+}
+
+async function loadPollOrThrow(kafelaId: string, pollId: string): Promise<PollRow> {
+  const poll = await prisma.poll.findFirst({
+    where: { id: pollId, kafelaId },
+    include: {
+      group: { select: pollGroupSelect },
+      author: { select: pollAuthorSelect },
+      options: { select: pollOptionSelect, orderBy: { position: 'asc' } },
+    },
+  });
+  if (!poll) throw new AppError(404, 'Poll not found');
+  return poll;
+}
+
+async function buildPollListItem(
+  poll: PollRow,
+  viewer: { id: string; groupId: string | null }
+): Promise<{
+  id: string;
+  kafelaId: string;
+  groupId: string | null;
+  authorId: string;
+  question: string;
+  allowMultiple: boolean;
+  anonymous: boolean;
+  closesAt: Date | null;
+  closedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  group: PollRow['group'];
+  author: PollRow['author'];
+  options: Array<{ id: string; label: string; position: number; voteCount: number }>;
+  myOptionIds: string[];
+  turnout: { eligible: number; voted: number };
+  closed: boolean;
+  canVote: boolean;
+}> {
+  const closedAt = await ensurePollClosedIfExpired(poll);
+  const effectiveClosedAt = closedAt ?? poll.closedAt;
+  const closed = !!effectiveClosedAt;
+
+  const audience = await prisma.kafelaMember.findMany({
+    where: pollAudienceWhere(poll.kafelaId, poll.groupId),
+    select: { id: true },
+  });
+  const audienceIds = new Set(audience.map((m) => m.id));
+
+  const votes = await prisma.pollVote.findMany({
+    where: { pollId: poll.id, memberId: { in: [...audienceIds] } },
+    select: {
+      memberId: true,
+      choices: { select: { optionId: true } },
+    },
+  });
+
+  const countByOption = new Map<string, number>();
+  for (const opt of poll.options) countByOption.set(opt.id, 0);
+  let myOptionIds: string[] = [];
+  for (const vote of votes) {
+    for (const choice of vote.choices) {
+      countByOption.set(choice.optionId, (countByOption.get(choice.optionId) ?? 0) + 1);
+    }
+    if (vote.memberId === viewer.id) {
+      myOptionIds = vote.choices.map((c) => c.optionId);
+    }
+  }
+
+  return {
+    id: poll.id,
+    kafelaId: poll.kafelaId,
+    groupId: poll.groupId,
+    authorId: poll.authorId,
+    question: poll.question,
+    allowMultiple: poll.allowMultiple,
+    anonymous: poll.anonymous,
+    closesAt: poll.closesAt,
+    closedAt: effectiveClosedAt,
+    createdAt: poll.createdAt,
+    updatedAt: poll.updatedAt,
+    group: poll.group,
+    author: poll.author,
+    options: poll.options.map((opt) => ({
+      id: opt.id,
+      label: opt.label,
+      position: opt.position,
+      voteCount: countByOption.get(opt.id) ?? 0,
+    })),
+    myOptionIds,
+    turnout: { eligible: audience.length, voted: votes.length },
+    closed,
+    canVote: isInPollAudience(viewer, poll) && !closed,
+  };
+}
+
+export async function createPoll(
+  userId: string,
+  kafelaId: string,
+  input: {
+    question?: string;
+    options?: string[];
+    allowMultiple?: boolean;
+    anonymous?: boolean;
+    groupId?: string | null;
+    closesAt?: string | Date | null;
+  }
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const question = input.question?.trim() || '';
+  if (!question) throw new AppError(400, 'Question is required');
+
+  const rawOptions = Array.isArray(input.options) ? input.options : [];
+  const labels = rawOptions
+    .map((o) => (typeof o === 'string' ? o.trim() : ''))
+    .filter(Boolean);
+  if (labels.length < MIN_POLL_OPTIONS) {
+    throw new AppError(400, `At least ${MIN_POLL_OPTIONS} options are required`);
+  }
+  if (labels.length > MAX_POLL_OPTIONS) {
+    throw new AppError(400, `At most ${MAX_POLL_OPTIONS} options are allowed`);
+  }
+
+  let groupId: string | null = input.groupId ?? null;
+  if (isKafelaAdmin(me.role)) {
+    if (groupId) {
+      const group = await prisma.kafelaGroup.findFirst({ where: { id: groupId, kafelaId } });
+      if (!group) throw new AppError(404, 'Group not found');
+    }
+  } else if (me.role === 'group_admin') {
+    if (!me.groupId) throw new AppError(403, 'You are not assigned to a group');
+    groupId = me.groupId;
+  } else {
+    throw new AppError(403, 'Only admins can create a poll');
+  }
+
+  let closesAt: Date | null = null;
+  if (input.closesAt) {
+    const parsed = new Date(input.closesAt);
+    if (Number.isNaN(parsed.getTime())) throw new AppError(400, 'Invalid closesAt');
+    if (parsed.getTime() <= Date.now()) throw new AppError(400, 'closesAt must be in the future');
+    closesAt = parsed;
+  }
+
+  const poll = await prisma.poll.create({
+    data: {
+      kafelaId,
+      groupId,
+      authorId: me.id,
+      question,
+      allowMultiple: !!input.allowMultiple,
+      anonymous: !!input.anonymous,
+      closesAt,
+      options: {
+        create: labels.map((label, position) => ({ label, position })),
+      },
+    },
+    include: {
+      group: { select: pollGroupSelect },
+      author: { select: pollAuthorSelect },
+      options: { select: pollOptionSelect, orderBy: { position: 'asc' } },
+    },
+  });
+
+  const recipients = await prisma.kafelaMember.findMany({
+    where: pollAudienceWhere(kafelaId, groupId),
+    select: { user: { select: { id: true, fcmToken: true } } },
+  });
+
+  await notifyMembers(recipients, `Poll: ${question}`, 'Tap to cast your vote', {
+    type: 'kafela_poll',
+    kafelaId,
+    pollId: poll.id,
+  });
+
+  publishKafelaChange(kafelaId);
+  return buildPollListItem(poll, me);
+}
+
+export async function listPolls(
+  userId: string,
+  kafelaId: string,
+  status: 'open' | 'closed' = 'open'
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+
+  // Close any expired open polls for this kafela (best-effort, scoped).
+  await prisma.poll.updateMany({
+    where: {
+      kafelaId,
+      closedAt: null,
+      closesAt: { lte: new Date() },
+    },
+    data: { closedAt: new Date() },
+  });
+
+  const where: Prisma.PollWhereInput = {
+    kafelaId,
+    closedAt: status === 'open' ? null : { not: null },
+  };
+  if (!isKafelaAdmin(me.role)) {
+    where.OR = [{ groupId: null }, ...(me.groupId ? [{ groupId: me.groupId }] : [])];
+  }
+
+  const polls = await prisma.poll.findMany({
+    where,
+    include: {
+      group: { select: pollGroupSelect },
+      author: { select: pollAuthorSelect },
+      options: { select: pollOptionSelect, orderBy: { position: 'asc' } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+
+  return Promise.all(polls.map((p) => buildPollListItem(p, me)));
+}
+
+export async function getPollDetail(userId: string, kafelaId: string, pollId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const poll = await loadPollOrThrow(kafelaId, pollId);
+  if (!canViewPoll(me, poll)) throw new AppError(403, 'Not allowed to view this poll');
+
+  const listItem = await buildPollListItem(poll, me);
+  const isManager = canManagePoll(me, poll);
+
+  const audience = await prisma.kafelaMember.findMany({
+    where: pollAudienceWhere(poll.kafelaId, poll.groupId),
+    select: {
+      id: true,
+      displayName: true,
+      user: { select: { name: true } },
+      group: { select: pollGroupSelect },
+    },
+    orderBy: { displayName: 'asc' },
+  });
+  const audienceIds = new Set(audience.map((m) => m.id));
+
+  const votes = await prisma.pollVote.findMany({
+    where: { pollId: poll.id, memberId: { in: [...audienceIds] } },
+    select: {
+      memberId: true,
+      choices: { select: { optionId: true } },
+      member: {
+        select: {
+          id: true,
+          displayName: true,
+          user: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  const votedIds = new Set(votes.map((v) => v.memberId));
+
+  type VoterName = { memberId: string; displayName: string };
+  const votersByOption = new Map<string, VoterName[]>();
+  for (const opt of poll.options) votersByOption.set(opt.id, []);
+
+  if (!poll.anonymous) {
+    for (const vote of votes) {
+      const name = memberDisplayName(vote.member);
+      for (const choice of vote.choices) {
+        votersByOption.get(choice.optionId)?.push({
+          memberId: vote.memberId,
+          displayName: name,
+        });
+      }
+    }
+  }
+
+  const notVoted =
+    poll.anonymous && isManager
+      ? audience
+          .filter((m) => !votedIds.has(m.id))
+          .map((m) => ({
+            memberId: m.id,
+            displayName: memberDisplayName(m),
+            group: m.group,
+          }))
+      : undefined;
+
+  return {
+    ...listItem,
+    options: listItem.options.map((opt) => ({
+      ...opt,
+      voters: poll.anonymous ? undefined : votersByOption.get(opt.id) ?? [],
+    })),
+    notVoted,
+    canManage: isManager,
+    canVote: isInPollAudience(me, poll) && !listItem.closed,
+  };
+}
+
+export async function castPollVote(
+  userId: string,
+  kafelaId: string,
+  pollId: string,
+  optionIdsInput: unknown
+) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const poll = await loadPollOrThrow(kafelaId, pollId);
+
+  if (!canViewPoll(me, poll) || !isInPollAudience(me, poll)) {
+    throw new AppError(403, 'This poll is not for your group');
+  }
+
+  const closedAt = await ensurePollClosedIfExpired(poll);
+  if (closedAt || poll.closedAt) throw new AppError(409, 'This poll is closed');
+
+  if (!Array.isArray(optionIdsInput) || optionIdsInput.length === 0) {
+    throw new AppError(400, 'optionIds is required');
+  }
+  const optionIds = [
+    ...new Set(
+      optionIdsInput.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+  if (!optionIds.length) throw new AppError(400, 'optionIds is required');
+  if (!poll.allowMultiple && optionIds.length > 1) {
+    throw new AppError(400, 'This poll allows only one choice');
+  }
+
+  const validIds = new Set(poll.options.map((o) => o.id));
+  for (const id of optionIds) {
+    if (!validIds.has(id)) throw new AppError(400, 'Invalid option');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.pollVote.findUnique({
+      where: { pollId_memberId: { pollId, memberId: me.id } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await tx.pollVoteChoice.deleteMany({ where: { voteId: existing.id } });
+      await tx.pollVoteChoice.createMany({
+        data: optionIds.map((optionId) => ({ voteId: existing.id, optionId })),
+      });
+      await tx.pollVote.update({
+        where: { id: existing.id },
+        data: { updatedAt: new Date() },
+      });
+    } else {
+      await tx.pollVote.create({
+        data: {
+          pollId,
+          memberId: me.id,
+          choices: {
+            create: optionIds.map((optionId) => ({ optionId })),
+          },
+        },
+      });
+    }
+  });
+
+  publishKafelaChange(kafelaId);
+  return getPollDetail(userId, kafelaId, pollId);
+}
+
+export async function retractPollVote(userId: string, kafelaId: string, pollId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const poll = await loadPollOrThrow(kafelaId, pollId);
+
+  if (!canViewPoll(me, poll) || !isInPollAudience(me, poll)) {
+    throw new AppError(403, 'This poll is not for your group');
+  }
+
+  const closedAt = await ensurePollClosedIfExpired(poll);
+  if (closedAt || poll.closedAt) throw new AppError(409, 'This poll is closed');
+
+  await prisma.pollVote.deleteMany({ where: { pollId, memberId: me.id } });
+  publishKafelaChange(kafelaId);
+  return getPollDetail(userId, kafelaId, pollId);
+}
+
+export async function closePoll(userId: string, kafelaId: string, pollId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const poll = await loadPollOrThrow(kafelaId, pollId);
+  if (!canManagePoll(me, poll)) throw new AppError(403, 'Not allowed to close this poll');
+
+  if (poll.closedAt) return buildPollListItem(poll, me);
+
+  await prisma.poll.update({
+    where: { id: pollId },
+    data: { closedAt: new Date() },
+  });
+  publishKafelaChange(kafelaId);
+  return getPollDetail(userId, kafelaId, pollId);
+}
+
+export async function deletePoll(userId: string, kafelaId: string, pollId: string) {
+  const me = await requireActiveMember(userId, kafelaId);
+  const poll = await loadPollOrThrow(kafelaId, pollId);
+  if (!canManagePoll(me, poll)) throw new AppError(403, 'Not allowed to delete this poll');
+
+  await prisma.poll.delete({ where: { id: pollId } });
+  publishKafelaChange(kafelaId);
+  return { deleted: true };
+}
+
 export async function getKafelaSnapshot(userId: string, kafelaId: string) {
   const me = await requireActiveMember(userId, kafelaId);
   const kafela = await prisma.kafela.findUnique({
@@ -2210,13 +2701,14 @@ export async function getKafelaSnapshot(userId: string, kafelaId: string) {
   });
   if (!kafela || !kafela.isActive) throw new AppError(404, 'Kafela not found');
 
-  const [members, groups, broadcasts, sosEvents, rollCalls, headcount, leaveRequests] =
+  const [members, groups, broadcasts, sosEvents, rollCalls, polls, headcount, leaveRequests] =
     await Promise.all([
       listMembers(userId, kafelaId),
       listGroups(userId, kafelaId),
       listBroadcasts(userId, kafelaId),
       listSos(userId, kafelaId, true),
       listRollCalls(userId, kafelaId),
+      listPolls(userId, kafelaId, 'open'),
       getOccupiedHeadcount(kafelaId),
       listPendingLeaveRequestsForViewer(me, kafelaId),
     ]);
@@ -2229,6 +2721,7 @@ export async function getKafelaSnapshot(userId: string, kafelaId: string) {
     broadcasts,
     sosEvents,
     rollCalls,
+    polls,
     leaveRequests,
   };
 }

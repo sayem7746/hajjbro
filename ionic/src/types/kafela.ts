@@ -158,6 +158,48 @@ export interface RollCall {
   _count?: { responses: number };
 }
 
+export interface PollOptionSummary {
+  id: string;
+  label: string;
+  position: number;
+  voteCount: number;
+  voters?: Array<{ memberId: string; displayName: string }>;
+}
+
+export interface PollSummary {
+  id: string;
+  kafelaId: string;
+  groupId: string | null;
+  authorId: string;
+  question: string;
+  allowMultiple: boolean;
+  anonymous: boolean;
+  closesAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  closed: boolean;
+  group?: { id: string; name: string; color: string } | null;
+  author?: {
+    id: string;
+    displayName: string | null;
+    user: { name: string | null };
+  };
+  options: PollOptionSummary[];
+  myOptionIds: string[];
+  turnout: { eligible: number; voted: number };
+  canVote: boolean;
+}
+
+export interface PollDetail extends PollSummary {
+  notVoted?: Array<{
+    memberId: string;
+    displayName: string;
+    group: { id: string; name: string; color: string } | null;
+  }>;
+  canManage: boolean;
+}
+
 export type KafelaLeaveRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 
 export interface KafelaLeaveRequest {

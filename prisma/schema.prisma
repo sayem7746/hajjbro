@@ -296,6 +296,7 @@ model Kafela {
   broadcasts    Broadcast[]
   sosEvents     SosEvent[]
   rollCalls     RollCall[]
+  polls         Poll[]
   leaveRequests KafelaLeaveRequest[]
 
   @@index([joinCode])
@@ -329,6 +330,8 @@ model KafelaMember {
   rollCallsAuthored         RollCall[]                 @relation("RollCallAuthor")
   rollCallResponses         RollCallResponse[]         @relation("RollCallSubject")
   rollCallMarks             RollCallResponse[]         @relation("RollCallMarker")
+  pollsAuthored             Poll[]                     @relation("PollAuthor")
+  pollVotes                 PollVote[]
   companions                KafelaCompanion[]
   companionRollCallMarks    RollCallCompanionResponse[] @relation("CompanionRollCallMarker")
   leaveRequests             KafelaLeaveRequest[]        @relation("LeaveRequester")
@@ -390,6 +393,7 @@ model KafelaGroup {
   members   KafelaMember[] @relation("GroupMembers")
   broadcasts Broadcast[]
   rollCalls RollCall[]
+  polls     Poll[]
 
   @@index([kafelaId])
   @@map("kafela_groups")
@@ -522,6 +526,73 @@ model RollCallCompanionResponse {
   @@index([companionId])
   @@index([markedById])
   @@map("roll_call_companion_responses")
+}
+
+model Poll {
+  id            String    @id @default(cuid())
+  kafelaId      String    @map("kafela_id")
+  groupId       String?   @map("group_id")
+  authorId      String    @map("author_id")
+  question      String
+  allowMultiple Boolean   @default(false) @map("allow_multiple")
+  anonymous     Boolean   @default(false)
+  closesAt      DateTime? @map("closes_at")
+  closedAt      DateTime? @map("closed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  kafela  Kafela       @relation(fields: [kafelaId], references: [id], onDelete: Cascade)
+  group   KafelaGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  author  KafelaMember @relation("PollAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([kafelaId, createdAt])
+  @@index([kafelaId, closedAt])
+  @@index([groupId])
+  @@map("polls")
+}
+
+model PollOption {
+  id       String @id @default(cuid())
+  pollId   String @map("poll_id")
+  label    String
+  position Int    @default(0)
+
+  poll    Poll             @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  choices PollVoteChoice[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String   @map("poll_id")
+  memberId  String   @map("member_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  poll    Poll             @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  member  KafelaMember     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  choices PollVoteChoice[]
+
+  @@unique([pollId, memberId])
+  @@index([memberId])
+  @@map("poll_votes")
+}
+
+model PollVoteChoice {
+  id       String @id @default(cuid())
+  voteId   String @map("vote_id")
+  optionId String @map("option_id")
+
+  vote   PollVote   @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, optionId])
+  @@index([optionId])
+  @@map("poll_vote_choices")
 }
 
 // ─── Prayer times (per location/date) ─────────────────────────────────────────

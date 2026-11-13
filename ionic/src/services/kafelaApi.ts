@@ -10,6 +10,8 @@ import type {
   KafelaGroupSummary,
   KafelaSummary,
   MyKafelaResponse,
+  PollDetail,
+  PollSummary,
   RollCall,
   SosEvent,
   VisibleLocation,
@@ -29,6 +31,7 @@ export type KafelaSnapshot = {
   broadcasts: Broadcast[];
   sosEvents: SosEvent[];
   rollCalls: RollCall[];
+  polls: PollSummary[];
   leaveRequests: KafelaLeaveRequest[];
 };
 
@@ -332,6 +335,40 @@ export const kafelaApi = {
     api
       .post(`/kafelas/${kafelaId}/roll-calls/${rollCallId}/close`)
       .then((r) => unwrap<RollCall>(r)),
+
+  listPolls: (kafelaId: string, status: 'open' | 'closed' = 'open') =>
+    api
+      .get(`/kafelas/${kafelaId}/polls`, { params: status === 'closed' ? { status: 'closed' } : {} })
+      .then((r) => unwrap<PollSummary[]>(r)),
+
+  createPoll: (
+    kafelaId: string,
+    body: {
+      question: string;
+      options: string[];
+      allowMultiple?: boolean;
+      anonymous?: boolean;
+      groupId?: string | null;
+      closesAt?: string | null;
+    }
+  ) => api.post(`/kafelas/${kafelaId}/polls`, body).then((r) => unwrap<PollSummary>(r)),
+
+  getPoll: (kafelaId: string, pollId: string) =>
+    api.get(`/kafelas/${kafelaId}/polls/${pollId}`).then((r) => unwrap<PollDetail>(r)),
+
+  castPollVote: (kafelaId: string, pollId: string, optionIds: string[]) =>
+    api
+      .put(`/kafelas/${kafelaId}/polls/${pollId}/vote`, { optionIds })
+      .then((r) => unwrap<PollDetail>(r)),
+
+  retractPollVote: (kafelaId: string, pollId: string) =>
+    api.delete(`/kafelas/${kafelaId}/polls/${pollId}/vote`).then((r) => unwrap<PollDetail>(r)),
+
+  closePoll: (kafelaId: string, pollId: string) =>
+    api.post(`/kafelas/${kafelaId}/polls/${pollId}/close`).then((r) => unwrap<PollDetail>(r)),
+
+  deletePoll: (kafelaId: string, pollId: string) =>
+    api.delete(`/kafelas/${kafelaId}/polls/${pollId}`).then((r) => unwrap<{ deleted: boolean }>(r)),
 
   /**
    * Open an authenticated SSE stream. Browser EventSource cannot set Authorization,

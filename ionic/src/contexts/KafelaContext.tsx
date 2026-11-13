@@ -24,6 +24,7 @@ import type {
   KafelaLeaveRequest,
   KafelaMember,
   KafelaSummary,
+  PollSummary,
   RollCall,
   SosEvent,
 } from '../types/kafela';
@@ -39,6 +40,7 @@ interface KafelaContextType {
   broadcasts: Broadcast[];
   sosEvents: SosEvent[];
   rollCalls: RollCall[];
+  polls: PollSummary[];
   leaveRequests: KafelaLeaveRequest[];
   isAdmin: boolean;
   canSendBroadcast: boolean;
@@ -55,6 +57,7 @@ interface KafelaContextType {
   refreshBroadcasts: () => Promise<void>;
   refreshSos: () => Promise<void>;
   refreshRollCalls: () => Promise<void>;
+  refreshPolls: () => Promise<void>;
   setLocalMe: (me: KafelaMember) => void;
   setLocalKafela: (k: KafelaSummary) => void;
   queueBroadcastAck: (broadcastId: string) => Promise<void>;
@@ -64,6 +67,11 @@ interface KafelaContextType {
     memberId?: string | null;
     companionId?: string | null;
     present: boolean;
+  }) => Promise<void>;
+  queuePollVote: (input: {
+    pollId: string;
+    optionIds: string[];
+    retract?: boolean;
   }) => Promise<void>;
   clear: () => void;
 }
@@ -85,6 +93,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [sosEvents, setSosEvents] = useState<SosEvent[]>([]);
   const [rollCalls, setRollCalls] = useState<RollCall[]>([]);
+  const [polls, setPolls] = useState<PollSummary[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<KafelaLeaveRequest[]>([]);
   const [liveRevision, setLiveRevision] = useState(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
@@ -103,6 +112,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setBroadcasts([]);
     setSosEvents([]);
     setRollCalls([]);
+    setPolls([]);
     setLeaveRequests([]);
     setError(null);
     setLastUpdatedAt(null);
@@ -120,6 +130,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setBroadcasts(snap.broadcasts);
       setSosEvents(snap.sosEvents);
       setRollCalls(snap.rollCalls);
+      setPolls(snap.polls ?? []);
       setLeaveRequests(snap.leaveRequests ?? []);
       kafelaIdRef.current = snap.kafela.id;
       setLastUpdatedAt(meta?.cachedAt ?? new Date().toISOString());
@@ -177,6 +188,16 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!kafela) return;
     try {
       setRollCalls(await kafelaApi.listRollCalls(kafela.id));
+      setIsOffline(false);
+    } catch {
+      /* keep cached */
+    }
+  }, [kafela]);
+
+  const refreshPolls = useCallback(async () => {
+    if (!kafela) return;
+    try {
+      setPolls(await kafelaApi.listPolls(kafela.id, 'open'));
       setIsOffline(false);
     } catch {
       /* keep cached */
@@ -325,6 +346,46 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     [kafela]
   );
 
+  const queuePollVote = useCallback(
+    async (input: { pollId: string; optionIds: string[]; retract?: boolean }) => {
+      if (!kafela) return;
+      const retract = !!input.retract;
+      try {
+        if (retract) {
+          await kafelaApi.retractPollVote(kafela.id, input.pollId);
+        } else {
+          await kafelaApi.castPollVote(kafela.id, input.pollId, input.optionIds);
+        }
+        setPolls((prev) =>
+          prev.map((p) =>
+            p.id === input.pollId
+              ? { ...p, myOptionIds: retract ? [] : input.optionIds }
+              : p
+          )
+        );
+        setIsOffline(false);
+      } catch {
+        const items = await enqueueOutbox({
+          type: 'poll_vote',
+          kafelaId: kafela.id,
+          pollId: input.pollId,
+          optionIds: retract ? [] : input.optionIds,
+          retract,
+        });
+        setOutbox(items);
+        setPolls((prev) =>
+          prev.map((p) =>
+            p.id === input.pollId
+              ? { ...p, myOptionIds: retract ? [] : input.optionIds }
+              : p
+          )
+        );
+        setIsOffline(true);
+      }
+    },
+    [kafela]
+  );
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -433,6 +494,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       broadcasts,
       sosEvents,
       rollCalls,
+      polls,
       leaveRequests,
       isAdmin: me ? isKafelaAdmin(me.role) : false,
       canSendBroadcast: me ? canBroadcast(me.role) : false,
@@ -446,10 +508,12 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       refreshBroadcasts,
       refreshSos,
       refreshRollCalls,
+      refreshPolls,
       setLocalMe: setMe,
       setLocalKafela: setKafela,
       queueBroadcastAck,
       queueRollCallMark,
+      queuePollVote,
       clear,
     }),
     [
@@ -462,6 +526,7 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       broadcasts,
       sosEvents,
       rollCalls,
+      polls,
       leaveRequests,
       liveRevision,
       lastUpdatedAt,
@@ -472,8 +537,10 @@ export const KafelaProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       refreshBroadcasts,
       refreshSos,
       refreshRollCalls,
+      refreshPolls,
       queueBroadcastAck,
       queueRollCallMark,
+      queuePollVote,
       clear,
     ]
   );

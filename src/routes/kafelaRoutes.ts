@@ -65,4 +65,13 @@ router.get('/:kafelaId/roll-calls/:rollCallId', kafela.rollCallStatus);
 router.post('/:kafelaId/roll-calls/:rollCallId/respond', kafela.respondRollCall);
 router.post('/:kafelaId/roll-calls/:rollCallId/close', kafela.closeRollCall);
 
+// Polls
+router.get('/:kafelaId/polls', kafela.listPolls);
+router.post('/:kafelaId/polls', kafela.createPoll);
+router.get('/:kafelaId/polls/:pollId', kafela.getPoll);
+router.put('/:kafelaId/polls/:pollId/vote', kafela.castPollVote);
+router.delete('/:kafelaId/polls/:pollId/vote', kafela.retractPollVote);
+router.post('/:kafelaId/polls/:pollId/close', kafela.closePoll);
+router.delete('/:kafelaId/polls/:pollId', kafela.deletePoll);
+
 export default router;

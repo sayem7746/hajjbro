@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Copy,
   Check,
+  BarChart3,
 } from 'lucide-react';
 import { useKafela } from '../../contexts/KafelaContext';
 import { kafelaApi } from '../../services/kafelaApi';
@@ -33,6 +34,7 @@ const KafelaHome: React.FC<Props> = ({ onOpenSos, onLeave, onOpenPeople }) => {
     broadcasts,
     sosEvents,
     rollCalls,
+    polls,
     leaveRequests,
     isAdmin,
     canSendBroadcast,
@@ -244,6 +246,25 @@ const KafelaHome: React.FC<Props> = ({ onOpenSos, onLeave, onOpenPeople }) => {
         </section>
       )}
 
+      {polls[0] && (
+        <section className="rounded-[24px] bg-stitch-surface-low px-4 py-3">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between text-left"
+            onClick={() => router.push(`/app/kafela/polls?id=${polls[0].id}`)}
+          >
+            <span className="text-sm font-semibold">
+              {polls[0].canVote && (polls[0].myOptionIds?.length ?? 0) === 0
+                ? `Poll needs your vote: ${polls[0].question}`
+                : `Open poll: ${polls[0].question}`}
+            </span>
+            <span className="text-xs font-bold text-stitch-primary">
+              {polls[0].canVote && (polls[0].myOptionIds?.length ?? 0) === 0 ? 'Vote' : 'Open'}
+            </span>
+          </button>
+        </section>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <ActionCard
           icon={<MapPinned size={20} />}
@@ -266,6 +287,11 @@ const KafelaHome: React.FC<Props> = ({ onOpenSos, onLeave, onOpenPeople }) => {
           icon={<ClipboardList size={20} />}
           label="Roll call"
           onClick={() => router.push('/app/kafela/roll-call')}
+        />
+        <ActionCard
+          icon={<BarChart3 size={20} />}
+          label="Polls"
+          onClick={() => router.push('/app/kafela/polls')}
         />
       </div>
 

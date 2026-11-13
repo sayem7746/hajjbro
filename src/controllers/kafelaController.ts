@@ -703,3 +703,100 @@ export async function closeRollCall(
     next(e);
   }
 }
+
+export async function createPoll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await kafelaService.createPoll(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.body ?? {}
+    );
+    res.status(201).json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function listPolls(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const status = req.query.status === 'closed' ? 'closed' : 'open';
+    const data = await kafelaService.listPolls(requireUserId(req), kafelaIdParam(req), status);
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getPoll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await kafelaService.getPollDetail(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.pollId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function castPollVote(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.castPollVote(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.pollId,
+      req.body?.optionIds
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function retractPollVote(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const data = await kafelaService.retractPollVote(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.pollId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function closePoll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await kafelaService.closePoll(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.pollId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function deletePoll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await kafelaService.deletePoll(
+      requireUserId(req),
+      kafelaIdParam(req),
+      req.params.pollId
+    );
+    res.json({ success: true, data });
+  } catch (e) {
+    next(e);
+  }
+}

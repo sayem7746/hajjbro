@@ -23,6 +23,15 @@ export type KafelaOutboxItem =
       kafelaId: string;
       broadcastId: string;
       createdAt: string;
+    }
+  | {
+      id: string;
+      type: 'poll_vote';
+      kafelaId: string;
+      pollId: string;
+      optionIds: string[];
+      retract: boolean;
+      createdAt: string;
     };
 
 export type CachedKafelaSnapshot = KafelaSnapshot & {
@@ -78,6 +87,15 @@ export async function enqueueOutbox(
         id?: string;
         createdAt?: string;
       }
+    | {
+        type: 'poll_vote';
+        kafelaId: string;
+        pollId: string;
+        optionIds: string[];
+        retract?: boolean;
+        id?: string;
+        createdAt?: string;
+      }
 ): Promise<KafelaOutboxItem[]> {
   const items = await readOutbox();
   const next = (
@@ -89,23 +107,36 @@ export async function enqueueOutbox(
           broadcastId: item.broadcastId,
           createdAt: item.createdAt ?? new Date().toISOString(),
         }
-      : {
-          id: item.id ?? newId(),
-          type: 'roll_call_mark' as const,
-          kafelaId: item.kafelaId,
-          rollCallId: item.rollCallId,
-          subjectType: item.subjectType,
-          memberId: item.memberId,
-          companionId: item.companionId,
-          present: item.present,
-          createdAt: item.createdAt ?? new Date().toISOString(),
-        }
+      : item.type === 'poll_vote'
+        ? {
+            id: item.id ?? newId(),
+            type: 'poll_vote' as const,
+            kafelaId: item.kafelaId,
+            pollId: item.pollId,
+            optionIds: item.optionIds,
+            retract: !!item.retract,
+            createdAt: item.createdAt ?? new Date().toISOString(),
+          }
+        : {
+            id: item.id ?? newId(),
+            type: 'roll_call_mark' as const,
+            kafelaId: item.kafelaId,
+            rollCallId: item.rollCallId,
+            subjectType: item.subjectType,
+            memberId: item.memberId,
+            companionId: item.companionId,
+            present: item.present,
+            createdAt: item.createdAt ?? new Date().toISOString(),
+          }
   ) satisfies KafelaOutboxItem;
 
-  // Deduplicate: keep latest mark per subject; one ack per broadcast
+  // Deduplicate: keep latest mark per subject; one ack per broadcast; latest ballot per poll
   const filtered = items.filter((existing) => {
     if (next.type === 'broadcast_ack' && existing.type === 'broadcast_ack') {
       return existing.broadcastId !== next.broadcastId;
+    }
+    if (next.type === 'poll_vote' && existing.type === 'poll_vote') {
+      return existing.pollId !== next.pollId;
     }
     if (next.type === 'roll_call_mark' && existing.type === 'roll_call_mark') {
       if (existing.rollCallId !== next.rollCallId) return true;
@@ -143,6 +174,12 @@ export async function flushOutbox(): Promise<{ flushed: number; remaining: Kafel
     try {
       if (item.type === 'broadcast_ack') {
         await kafelaApi.ackBroadcast(item.kafelaId, item.broadcastId);
+      } else if (item.type === 'poll_vote') {
+        if (item.retract) {
+          await kafelaApi.retractPollVote(item.kafelaId, item.pollId);
+        } else {
+          await kafelaApi.castPollVote(item.kafelaId, item.pollId, item.optionIds);
+        }
       } else {
         await kafelaApi.respondRollCall(item.kafelaId, item.rollCallId, {
           present: item.present,
